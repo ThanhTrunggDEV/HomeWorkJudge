@@ -75,16 +75,11 @@ Thư mục Domain sẽ bao gồm các thành phần cốt lõi của **Clean Arc
 ---
 
 ## 5. Ports (Interfaces)
-*Các cổng giao tiếp (Inversion of Control) để Domain tương tác với thế giới bên ngoài (Database, API ngoài) mà không bị phụ thuộc.*
+*Các cổng giao tiếp (Inversion of Control) để Domain tương tác với thế giới bên ngoài (Database) mà không bị phụ thuộc.*
 
 **Repositories (DB Access):**
-* IUserRepository
-* IClassroomRepository
-* IAssignmentRepository
-* ISubmissionRepository
-
-**External Services:**
-* ICodeSandboxService: Gọi ra môi trường Docker (hoặc Judge0 API) để biên dịch & chạy code, trả về TestCaseResult.
-* IAiGradingService: Gọi ra LLM (OpenAI/Gemini) truyền Prompt + Rubric + Code để lấy về RubricResult.
-* IAiAssistantService: Xử lý Use case Học sinh chat hỏi AI lý do bị trừ điểm.
+* `IUserRepository`
+* `IClassroomRepository`
+* `IAssignmentRepository`
+* `ISubmissionRepository`
 
