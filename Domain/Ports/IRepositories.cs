@@ -1,9 +1,15 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Domain.Entity;
 using Domain.ValueObject;
 
 namespace Domain.Ports;
+
+public interface IUnitOfWork
+{
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+}
 
 public interface IUserRepository
 {

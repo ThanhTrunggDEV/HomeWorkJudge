@@ -17,4 +17,3 @@ public enum TestCaseStatus { Passed, Failed, TimeOut, RuntimeError }
 
 public record TestCaseResult(TestCaseId TestCaseId, string ActualOutput, long ExecutionTimeMs, long MemoryUsedKb, TestCaseStatus Status);
 public record RubricResult(string CriteriaName, double GivenScore, string CommentReason);
-public record CodeMetrics(double ComplexityScore, int StyleIssuesCount, int PotentialBugs);
