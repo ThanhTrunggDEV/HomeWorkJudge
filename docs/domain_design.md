@@ -41,7 +41,11 @@ Thư mục Domain sẽ bao gồm các thành phần cốt lõi của **Clean Arc
 ---
 
 ## 2. Value Objects
-*Các đối tượng bất biến, không có định danh (Id), được xác định bởi giá trị của chúng, thường dùng làm thuộc tính cho Entity.*
+*Các đối tượng bất biến, không có định danh (Id), được xác định bởi giá trị của chúng, thường dùng làm thuộc tính cho Entity. Trong DDD, định danh của Entity cũng nên được bọc trong Value Object (Strongly-typed ID).*
+
+**Strongly-typed IDs**
+* Thay vì dùng `Guid` hay `int` chung chung, mỗi định danh Entity là một kiểu dữ liệu riêng.
+* `UserId`, `ClassroomId`, `AssignmentId`, `TestCaseId`, `RubricId`, `SubmissionId`
 
 **TestCaseResult**
 * Dữ liệu trả về sau khi chạy thử 1 test case.
