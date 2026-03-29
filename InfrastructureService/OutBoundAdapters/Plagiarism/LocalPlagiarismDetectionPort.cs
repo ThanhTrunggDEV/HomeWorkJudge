@@ -82,7 +82,7 @@ public sealed partial class LocalPlagiarismDetectionPort : IPlagiarismDetectionP
     {
         if (left.Count == 0 && right.Count == 0)
         {
-            return 1;
+            return 0;
         }
 
         var intersectionCount = left.Intersect(right).Count();
@@ -90,7 +90,7 @@ public sealed partial class LocalPlagiarismDetectionPort : IPlagiarismDetectionP
 
         if (unionCount == 0)
         {
-            return 1;
+            return 0;
         }
 
         return (double)intersectionCount / unionCount;

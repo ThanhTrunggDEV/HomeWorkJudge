@@ -43,6 +43,13 @@ public sealed class LocalCodeCompilationPort : ICodeCompilationPort
         string language,
         CancellationToken cancellationToken)
     {
+        if (!_options.AllowUnsafeLocalExecution)
+        {
+            throw new InfrastructureException(
+                "JUDGING_UNSAFE_EXECUTION_BLOCKED",
+                "Local code compilation/execution is disabled. Set Infrastructure:Judging:AllowUnsafeLocalExecution=true only in trusted environments.");
+        }
+
         if (string.IsNullOrWhiteSpace(sourceCode))
         {
             throw new InfrastructureException("JUDGING_EMPTY_SOURCE", "Source code cannot be empty.");
@@ -64,41 +71,54 @@ public sealed class LocalCodeCompilationPort : ICodeCompilationPort
             Guid.NewGuid().ToString("N"));
 
         Directory.CreateDirectory(workspacePath);
+        var keepWorkspace = false;
 
-        var programPath = Path.Combine(workspacePath, "Program.cs");
-        var csprojPath = Path.Combine(workspacePath, "Submission.csproj");
-
-        await File.WriteAllTextAsync(programPath, sourceCode, Encoding.UTF8, cancellationToken);
-        await File.WriteAllTextAsync(csprojPath, BuildCsproj(), Encoding.UTF8, cancellationToken);
-
-        var timeout = TimeSpan.FromSeconds(Math.Max(1, _options.CompileTimeoutSeconds));
-        var processResult = await ProcessExecutionHelper.RunAsync(
-            "dotnet",
-            "build --configuration Release --nologo",
-            workspacePath,
-            null,
-            timeout,
-            cancellationToken);
-
-        if (processResult.TimedOut)
+        try
         {
-            _logger.LogWarning("Compilation timed out in {TimeoutSeconds}s.", _options.CompileTimeoutSeconds);
-            return new CodeCompilationResultDto(false, "Compilation timed out.", null);
-        }
+            var programPath = Path.Combine(workspacePath, "Program.cs");
+            var csprojPath = Path.Combine(workspacePath, "Submission.csproj");
 
-        if (processResult.ExitCode != 0)
+            await File.WriteAllTextAsync(programPath, sourceCode, Encoding.UTF8, cancellationToken);
+            await File.WriteAllTextAsync(csprojPath, BuildCsproj(), Encoding.UTF8, cancellationToken);
+
+            var timeout = TimeSpan.FromSeconds(Math.Max(1, _options.CompileTimeoutSeconds));
+            var processResult = await ProcessExecutionHelper.RunAsync(
+                "dotnet",
+                "build --configuration Release --nologo",
+                workspacePath,
+                null,
+                timeout,
+                0,
+                cancellationToken);
+
+            if (processResult.TimedOut)
+            {
+                _logger.LogWarning("Compilation timed out in {TimeoutSeconds}s.", _options.CompileTimeoutSeconds);
+                return new CodeCompilationResultDto(false, "Compilation timed out.", null);
+            }
+
+            if (processResult.ExitCode != 0)
+            {
+                var compilerOutput = BuildProcessOutput(processResult);
+                return new CodeCompilationResultDto(false, compilerOutput, null);
+            }
+
+            var artifactPath = Path.Combine(workspacePath, "bin", "Release", "net9.0", "Submission.dll");
+            if (!File.Exists(artifactPath))
+            {
+                return new CodeCompilationResultDto(false, "Compilation did not produce Submission.dll artifact.", null);
+            }
+
+            keepWorkspace = true;
+            return new CodeCompilationResultDto(true, BuildProcessOutput(processResult), artifactPath);
+        }
+        finally
         {
-            var compilerOutput = BuildProcessOutput(processResult);
-            return new CodeCompilationResultDto(false, compilerOutput, null);
+            if (!keepWorkspace)
+            {
+                TryDeleteWorkspace(workspacePath);
+            }
         }
-
-        var artifactPath = Path.Combine(workspacePath, "bin", "Release", "net9.0", "Submission.dll");
-        if (!File.Exists(artifactPath))
-        {
-            return new CodeCompilationResultDto(false, "Compilation did not produce Submission.dll artifact.", null);
-        }
-
-        return new CodeCompilationResultDto(true, BuildProcessOutput(processResult), artifactPath);
     }
 
     private static string BuildCsproj() =>
@@ -126,5 +146,20 @@ public sealed class LocalCodeCompilationPort : ICodeCompilationPort
         }
 
         return processResult.StandardOutput + Environment.NewLine + processResult.StandardError;
+    }
+
+    private void TryDeleteWorkspace(string workspacePath)
+    {
+        try
+        {
+            if (Directory.Exists(workspacePath))
+            {
+                Directory.Delete(workspacePath, recursive: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to clean compilation workspace {WorkspacePath}.", workspacePath);
+        }
     }
 }

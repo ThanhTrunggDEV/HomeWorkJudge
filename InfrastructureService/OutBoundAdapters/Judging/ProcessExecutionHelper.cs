@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,6 +10,7 @@ internal sealed record ProcessExecutionResult(
     string StandardOutput,
     string StandardError,
     bool TimedOut,
+    bool MemoryLimitExceeded,
     long PeakMemoryKb,
     long DurationMs);
 
@@ -22,6 +22,7 @@ internal static class ProcessExecutionHelper
         string workingDirectory,
         string? standardInput,
         TimeSpan timeout,
+        long memoryLimitKb,
         CancellationToken cancellationToken)
     {
         var startInfo = new ProcessStartInfo
@@ -58,6 +59,10 @@ internal static class ProcessExecutionHelper
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
         var timedOut = false;
+        var memoryLimitExceeded = false;
+        var memoryMonitorTask = memoryLimitKb > 0
+            ? MonitorMemoryLimitAsync(process, memoryLimitKb, () => memoryLimitExceeded = true, linkedCts.Token)
+            : Task.CompletedTask;
 
         try
         {
@@ -97,6 +102,8 @@ internal static class ProcessExecutionHelper
             throw;
         }
 
+        await memoryMonitorTask;
+
         var standardOutput = await outputTask;
         var standardError = await errorTask;
 
@@ -115,7 +122,55 @@ internal static class ProcessExecutionHelper
             standardOutput,
             standardError,
             timedOut,
+            memoryLimitExceeded,
             peakMemoryKb,
             stopwatch.ElapsedMilliseconds);
+    }
+
+    private static async Task MonitorMemoryLimitAsync(
+        Process process,
+        long memoryLimitKb,
+        Action onExceeded,
+        CancellationToken cancellationToken)
+    {
+        while (!process.HasExited && !cancellationToken.IsCancellationRequested)
+        {
+            long currentMemoryKb;
+            try
+            {
+                currentMemoryKb = process.WorkingSet64 / 1024;
+            }
+            catch
+            {
+                break;
+            }
+
+            if (currentMemoryKb > memoryLimitKb)
+            {
+                onExceeded();
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch
+                {
+                    // Best effort kill.
+                }
+
+                break;
+            }
+
+            try
+            {
+                await Task.Delay(50, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
     }
 }

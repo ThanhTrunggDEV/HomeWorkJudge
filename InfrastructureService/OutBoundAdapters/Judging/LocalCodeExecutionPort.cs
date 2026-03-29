@@ -36,6 +36,13 @@ public sealed class LocalCodeExecutionPort : ICodeExecutionPort
         CodeExecutionRequestDto request,
         CancellationToken cancellationToken)
     {
+        if (!_options.AllowUnsafeLocalExecution)
+        {
+            throw new InfrastructureException(
+                "JUDGING_UNSAFE_EXECUTION_BLOCKED",
+                "Local code compilation/execution is disabled. Set Infrastructure:Judging:AllowUnsafeLocalExecution=true only in trusted environments.");
+        }
+
         if (request is null)
         {
             throw new ArgumentNullException(nameof(request));
@@ -56,6 +63,7 @@ public sealed class LocalCodeExecutionPort : ICodeExecutionPort
             : Math.Max(1000, _options.ExecuteTimeoutSeconds * 1000L);
 
         var timeout = TimeSpan.FromMilliseconds(timeoutMs);
+        var memoryLimitKb = request.MemoryLimitKb > 0 ? request.MemoryLimitKb : 0;
         var workingDirectory = Path.GetDirectoryName(request.ArtifactPath) ?? Directory.GetCurrentDirectory();
 
         var execution = BuildExecution(request.ArtifactPath);
@@ -65,6 +73,7 @@ public sealed class LocalCodeExecutionPort : ICodeExecutionPort
             workingDirectory,
             request.Input,
             timeout,
+            memoryLimitKb,
             cancellationToken);
 
         if (processResult.TimedOut)
@@ -77,6 +86,17 @@ public sealed class LocalCodeExecutionPort : ICodeExecutionPort
                 false,
                 "Execution timed out.");
         }
+
+            if (processResult.MemoryLimitExceeded)
+            {
+                return new CodeExecutionResultDto(
+                NormalizeOutput(processResult.StandardOutput),
+                processResult.DurationMs,
+                processResult.PeakMemoryKb,
+                false,
+                true,
+                "Execution exceeded memory limit.");
+            }
 
         var runtimeError = processResult.ExitCode != 0;
         var runtimeMessage = runtimeError

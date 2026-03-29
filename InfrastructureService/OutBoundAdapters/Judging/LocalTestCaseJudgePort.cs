@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Ports.DTO.Common;
 using Ports.DTO.Submission;
 using Ports.OutBoundPorts.Judging;
@@ -12,13 +14,16 @@ public sealed class LocalTestCaseJudgePort : ITestCaseJudgePort
 {
     private readonly ICodeCompilationPort _compilationPort;
     private readonly ICodeExecutionPort _executionPort;
+    private readonly ILogger<LocalTestCaseJudgePort> _logger;
 
     public LocalTestCaseJudgePort(
         ICodeCompilationPort compilationPort,
-        ICodeExecutionPort executionPort)
+        ICodeExecutionPort executionPort,
+        ILogger<LocalTestCaseJudgePort> logger)
     {
         _compilationPort = compilationPort;
         _executionPort = executionPort;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<TestCaseExecutionResultDto>> JudgeAsync(
@@ -52,28 +57,35 @@ public sealed class LocalTestCaseJudgePort : ITestCaseJudgePort
         }
 
         var results = new List<TestCaseExecutionResultDto>(request.TestCases.Count);
-        foreach (var testCase in request.TestCases)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var testCase in request.TestCases)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
 
-            var executionRequest = new CodeExecutionRequestDto(
-                compilationResult.ArtifactPath,
-                testCase.Input,
-                request.TimeLimitMs,
-                request.MemoryLimitKb);
+                var executionRequest = new CodeExecutionRequestDto(
+                    compilationResult.ArtifactPath,
+                    testCase.Input,
+                    request.TimeLimitMs,
+                    request.MemoryLimitKb);
 
-            var execution = await _executionPort.ExecuteAsync(executionRequest, cancellationToken);
-            var status = ResolveStatus(execution, testCase.ExpectedOutput);
+                var execution = await _executionPort.ExecuteAsync(executionRequest, cancellationToken);
+                var status = ResolveStatus(execution, testCase.ExpectedOutput);
 
-            results.Add(new TestCaseExecutionResultDto(
-                testCase.TestCaseId,
-                status,
-                execution.ActualOutput,
-                execution.ExecutionTimeMs,
-                execution.MemoryUsedKb));
+                results.Add(new TestCaseExecutionResultDto(
+                    testCase.TestCaseId,
+                    status,
+                    execution.ActualOutput,
+                    execution.ExecutionTimeMs,
+                    execution.MemoryUsedKb));
+            }
+
+            return results;
         }
-
-        return results;
+        finally
+        {
+            TryCleanupWorkspaceFromArtifact(compilationResult.ArtifactPath);
+        }
     }
 
     private static TestCaseExecutionStatusDto ResolveStatus(
@@ -100,4 +112,50 @@ public sealed class LocalTestCaseJudgePort : ITestCaseJudgePort
 
     private static string NormalizeOutput(string output)
         => (output ?? string.Empty).Replace("\r\n", "\n").TrimEnd('\n', '\r', ' ', '\t');
+
+    private void TryCleanupWorkspaceFromArtifact(string artifactPath)
+    {
+        if (string.IsNullOrWhiteSpace(artifactPath))
+        {
+            return;
+        }
+
+        var workspacePath = ResolveWorkspacePath(artifactPath);
+        if (string.IsNullOrWhiteSpace(workspacePath))
+        {
+            return;
+        }
+
+        var allowedRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "homeworkjudge", "judging"));
+        var normalizedWorkspacePath = Path.GetFullPath(workspacePath);
+
+        if (!normalizedWorkspacePath.StartsWith(allowedRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Skip workspace cleanup because path {WorkspacePath} is outside allowed root.", normalizedWorkspacePath);
+            return;
+        }
+
+        try
+        {
+            if (Directory.Exists(normalizedWorkspacePath))
+            {
+                Directory.Delete(normalizedWorkspacePath, recursive: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete judging workspace {WorkspacePath}.", normalizedWorkspacePath);
+        }
+    }
+
+    private static string? ResolveWorkspacePath(string artifactPath)
+    {
+        var current = Path.GetDirectoryName(artifactPath);
+        for (var i = 0; i < 4 && !string.IsNullOrWhiteSpace(current); i++)
+        {
+            current = Directory.GetParent(current)?.FullName;
+        }
+
+        return current;
+    }
 }
