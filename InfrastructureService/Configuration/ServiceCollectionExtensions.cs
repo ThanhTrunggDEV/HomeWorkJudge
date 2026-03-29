@@ -2,9 +2,12 @@ using InfrastructureService.Common.Observability;
 using InfrastructureService.Common.Queue;
 using InfrastructureService.Common.Resilience;
 using InfrastructureService.Configuration.Options;
+using InfrastructureService.OutBoundAdapters.AI;
+using InfrastructureService.OutBoundAdapters.Judging;
+using InfrastructureService.OutBoundAdapters.Plagiarism;
 using InfrastructureService.OutBoundAdapters.Queue;
 using InfrastructureService.OutBoundAdapters.Report;
-using InfrastructureService.OutBoundAdapters.Scaffold;
+using InfrastructureService.OutBoundAdapters.RubricGrading;
 using InfrastructureService.OutBoundAdapters.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -74,12 +77,12 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IFileStoragePort, LocalFileStoragePort>();
         services.AddScoped<IReportExportPort, CsvReportExportPort>();
-        services.AddScoped<ICodeCompilationPort, ScaffoldCodeCompilationPort>();
-        services.AddScoped<ICodeExecutionPort, ScaffoldCodeExecutionPort>();
-        services.AddScoped<ITestCaseJudgePort, ScaffoldTestCaseJudgePort>();
-        services.AddScoped<IAiGradingPort, ScaffoldAiGradingPort>();
-        services.AddScoped<IRubricGradingPort, ScaffoldRubricGradingPort>();
-        services.AddScoped<IPlagiarismDetectionPort, ScaffoldPlagiarismDetectionPort>();
+        services.AddScoped<ICodeCompilationPort, LocalCodeCompilationPort>();
+        services.AddScoped<ICodeExecutionPort, LocalCodeExecutionPort>();
+        services.AddScoped<ITestCaseJudgePort, LocalTestCaseJudgePort>();
+        services.AddScoped<IAiGradingPort, MockAiGradingPort>();
+        services.AddScoped<IRubricGradingPort, HybridRubricGradingPort>();
+        services.AddScoped<IPlagiarismDetectionPort, LocalPlagiarismDetectionPort>();
 
         var useInProcessConsumer =
             useInMemoryQueue && (
