@@ -73,7 +73,7 @@ public class Assignment : EntityBase
         if (GradingType == GradingType.Rubric && Rubric == null) throw new DomainException("Cannot publish a Rubric assignment without a rubric.");
 
         PublishStatus = PublishStatus.Published;
-        Raise(new AssignmentPublishedEvent(Id, DateTime.UtcNow));
+        Raise(new AssignmentPublishedEvent(Id, DateTime.UtcNow, DateTimeOffset.UtcNow));
     }
 
     public bool IsOverdue(DateTime currentTime) => currentTime > DueDate;

@@ -3,10 +3,25 @@ using Domain.ValueObject;
 
 namespace Domain.Event;
 
-public interface IDomainEvent { }
+public interface IDomainEvent
+{
+	DateTimeOffset OccurredOn { get; }
+}
 
-public record AssignmentPublishedEvent(AssignmentId AssignmentId, DateTime PublishedAt) : IDomainEvent;
+public sealed record AssignmentPublishedEvent(
+	AssignmentId AssignmentId,
+	DateTime PublishedAt,
+	DateTimeOffset OccurredOn
+) : IDomainEvent;
 
-public record SubmissionCreatedEvent(SubmissionId SubmissionId, AssignmentId AssignmentId) : IDomainEvent;
+public sealed record SubmissionCreatedEvent(
+	SubmissionId SubmissionId,
+	AssignmentId AssignmentId,
+	DateTimeOffset OccurredOn
+) : IDomainEvent;
 
-public record SubmissionGradingCompletedEvent(SubmissionId SubmissionId, double TotalScore) : IDomainEvent;
+public sealed record SubmissionGradingCompletedEvent(
+	SubmissionId SubmissionId,
+	double TotalScore,
+	DateTimeOffset OccurredOn
+) : IDomainEvent;

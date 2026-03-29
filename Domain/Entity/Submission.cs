@@ -38,7 +38,7 @@ public class Submission : EntityBase
         SubmitTime = DateTime.UtcNow;
         Status = SubmissionStatus.Pending;
         
-        Raise(new SubmissionCreatedEvent(Id, AssignmentId));
+        Raise(new SubmissionCreatedEvent(Id, AssignmentId, DateTimeOffset.UtcNow));
     }
 
     public void ChangeStatusToExecuting() 
@@ -55,7 +55,7 @@ public class Submission : EntityBase
         _testCaseResults.AddRange(results);
         Status = SubmissionStatus.Done;
         TotalScore = CalculateScoreFromTestCases();
-        Raise(new SubmissionGradingCompletedEvent(Id, TotalScore));
+        Raise(new SubmissionGradingCompletedEvent(Id, TotalScore, DateTimeOffset.UtcNow));
     }
 
     public void AttachRubricResults(IEnumerable<RubricResult> results)
@@ -66,7 +66,7 @@ public class Submission : EntityBase
         _rubricResults.AddRange(results);
         Status = SubmissionStatus.Done;
         TotalScore = _rubricResults.Sum(r => r.GivenScore);
-        Raise(new SubmissionGradingCompletedEvent(Id, TotalScore));
+        Raise(new SubmissionGradingCompletedEvent(Id, TotalScore, DateTimeOffset.UtcNow));
     }
 
     private double CalculateScoreFromTestCases()
