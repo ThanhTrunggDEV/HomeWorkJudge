@@ -1,7 +1,7 @@
 # Danh sách Use Case
 
 **Ứng dụng hỗ trợ chấm bài tập thực hành lập trình**  
-**Tổng cộng:** 27 Use Case | 5 Nhóm
+**Tổng cộng:** 24 Use Case | 5 Nhóm
 
 ## Nhóm 1 — Quản lý bài tập
 
@@ -20,7 +20,6 @@
 | :--- | :--- | :--- | :--- |
 | UC06 | Nộp code | Học sinh | Paste code hoặc upload file, chọn ngôn ngữ |
 | UC08 | Chấm tự động qua test case | Hệ thống | Chạy từng test case, trả về Passed / Failed / Timeout / Runtime Error |
-| UC10 | AI nhận xét & gợi ý cải thiện | AI | Đọc code và đưa ra nhận xét logic, hiệu quả, cách viết |
 | UC11 | Giáo viên chấm tay / chỉnh điểm | Giáo viên | Override điểm tự động nếu cần |
 
 ## Nhóm 3 — Chấm theo Rubric (không có test case)
@@ -58,9 +57,9 @@
 | Nhóm | Tên nhóm | Số UC |
 | :--- | :--- | :--- |
 | 1 | Quản lý bài tập | 6 |
-| 2 | Nộp bài & Chấm tự động | 6 |
+| 2 | Nộp bài & Chấm tự động | 3 |
 | 3 | Chấm theo Rubric | 6 |
 | 4 | Kết quả & Phản hồi | 5 |
 | 5 | Quản lý người dùng & Lớp học | 4 |
 
-**Tổng cộng:** 27 Use Case
+**Tổng cộng:** 24 Use Case

@@ -55,10 +55,6 @@ Thư mục Domain sẽ bao gồm các thành phần cốt lõi của **Clean Arc
 * Đánh giá trên 1 tiêu chí cụ thể.
 * **Fields:** CriteriaName, GivenScore, CommentReason (Nhận xét của AI / Giáo viên).
 
-**CodeMetrics**
-* Thống kê độ phức tạp của code.
-* **Fields:** ComplexityScore, StyleIssuesCount, PotentialBugs.
-
 ---
 
 ## 3. Events (Domain Events)
@@ -74,7 +70,7 @@ Thư mục Domain sẽ bao gồm các thành phần cốt lõi của **Clean Arc
 *Các nguyên tắc nghiệp vụ phức tạp hoặc liên quan nhiều Entity, không thể nhét riêng vào một Entity nào.*
 
 * **LateSubmissionPolicy**: Tính toán % số điểm bị trừ nếu học sinh nộp bài trễ SubmitTime > Assignment.DueDate.
-* **PlagiarismMatchPolicy**: Logic kiểm tra mức độ trùng lặp. Đưa ra cờ đánh dấu (Flag) nếu SimilarityScore giữa hai mã nguồn > 80%.
+* **PlagiarismMatchPolicy**: Logic kiểm tra mức độ trùng lặp. Ngưỡng SimilarityScore được cấu hình động qua constructor/DI (không hard-code).
 
 ---
 
@@ -86,4 +82,5 @@ Thư mục Domain sẽ bao gồm các thành phần cốt lõi của **Clean Arc
 * `IClassroomRepository`
 * `IAssignmentRepository`
 * `ISubmissionRepository`
+* `IUnitOfWork`
 
