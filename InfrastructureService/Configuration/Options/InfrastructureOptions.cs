@@ -14,7 +14,7 @@ public sealed class InfrastructureOptions
 
 public sealed class QueueOptions
 {
-    public string Provider { get; set; } = "RabbitMq";
+    public string Provider { get; set; } = "InMemory";
     public string ConsumerMode { get; set; } = "Worker";
     public bool AllowInProcessInDevelopment { get; set; } = true;
     public int MaxRetryCount { get; set; } = 3;

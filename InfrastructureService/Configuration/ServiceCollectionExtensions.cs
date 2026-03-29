@@ -1,9 +1,14 @@
 using InfrastructureService.Common.Observability;
+using InfrastructureService.Common.Queue;
 using InfrastructureService.Common.Resilience;
 using InfrastructureService.Configuration.Options;
+using InfrastructureService.OutBoundAdapters.Queue;
+using InfrastructureService.OutBoundAdapters.Report;
 using InfrastructureService.OutBoundAdapters.Scaffold;
+using InfrastructureService.OutBoundAdapters.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Ports.OutBoundPorts.AI;
 using Ports.OutBoundPorts.Judging;
 using Ports.OutBoundPorts.Plagiarism;
@@ -18,9 +23,29 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddInfrastructureServiceFoundation(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment? hostEnvironment = null)
     {
         var infrastructureSection = configuration.GetSection("Infrastructure");
+        var queueOptions = infrastructureSection.GetSection("Queue").Get<QueueOptions>() ?? new QueueOptions();
+        var queueProvider = queueOptions.Provider?.Trim() ?? "InMemory";
+        var isDevelopment = hostEnvironment?.IsDevelopment() ??
+            string.Equals(
+                Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+                Environments.Development,
+                StringComparison.OrdinalIgnoreCase);
+
+        var isInMemoryProvider = string.Equals(queueProvider, "InMemory", StringComparison.OrdinalIgnoreCase);
+        var isRabbitProvider = string.Equals(queueProvider, "RabbitMq", StringComparison.OrdinalIgnoreCase);
+
+        if (!isInMemoryProvider && !isRabbitProvider)
+        {
+            throw new InvalidOperationException($"Unsupported Queue.Provider '{queueProvider}'. Supported values: InMemory, RabbitMq.");
+        }
+
+        var fallbackToInProcessInDevelopment =
+            isRabbitProvider && isDevelopment && queueOptions.AllowInProcessInDevelopment;
+        var useInMemoryQueue = isInMemoryProvider || fallbackToInProcessInDevelopment;
 
         services.Configure<InfrastructureOptions>(infrastructureSection);
         services.Configure<QueueOptions>(infrastructureSection.GetSection("Queue"));
@@ -35,15 +60,36 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICorrelationIdAccessor, CorrelationIdAccessor>();
         services.AddSingleton<IOperationExecutor, DefaultOperationExecutor>();
 
-        services.AddScoped<IBackgroundJobQueuePort, ScaffoldBackgroundJobQueueAdapter>();
-        services.AddScoped<IFileStoragePort, ScaffoldFileStoragePort>();
-        services.AddScoped<IReportExportPort, ScaffoldReportExportPort>();
+        if (useInMemoryQueue)
+        {
+            services.AddSingleton<IJobEnvelopeQueue, InMemoryJobEnvelopeQueue>();
+            services.AddSingleton<IBackgroundJobProcessor, LoggingBackgroundJobProcessor>();
+            services.AddSingleton<IDeadLetterJobSink, InMemoryDeadLetterJobSink>();
+            services.AddScoped<IBackgroundJobQueuePort, InMemoryBackgroundJobQueueAdapter>();
+        }
+        else
+        {
+            services.AddScoped<IBackgroundJobQueuePort, RabbitMqBackgroundJobQueueAdapter>();
+        }
+
+        services.AddScoped<IFileStoragePort, LocalFileStoragePort>();
+        services.AddScoped<IReportExportPort, CsvReportExportPort>();
         services.AddScoped<ICodeCompilationPort, ScaffoldCodeCompilationPort>();
         services.AddScoped<ICodeExecutionPort, ScaffoldCodeExecutionPort>();
         services.AddScoped<ITestCaseJudgePort, ScaffoldTestCaseJudgePort>();
         services.AddScoped<IAiGradingPort, ScaffoldAiGradingPort>();
         services.AddScoped<IRubricGradingPort, ScaffoldRubricGradingPort>();
         services.AddScoped<IPlagiarismDetectionPort, ScaffoldPlagiarismDetectionPort>();
+
+        var useInProcessConsumer =
+            useInMemoryQueue && (
+                string.Equals(queueOptions.ConsumerMode, "InProcess", StringComparison.OrdinalIgnoreCase) ||
+                (isDevelopment && queueOptions.AllowInProcessInDevelopment));
+
+        if (useInProcessConsumer)
+        {
+            services.AddHostedService<InProcessJobBackgroundService>();
+        }
 
         return services;
     }
