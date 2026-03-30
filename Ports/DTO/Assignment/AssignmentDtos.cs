@@ -21,6 +21,7 @@ public sealed record CreateAssignmentResponseDto(Guid AssignmentId, AssignmentPu
 
 public sealed record UpdateAssignmentRequestDto(
     Guid AssignmentId,
+    Guid RequestedByUserId,
     string Title,
     string Description,
     DateTime DueDate,

@@ -54,7 +54,12 @@ else
                 <td>@item.GradingType</td>
                 <td>@item.PublishStatus</td>
                 <td class="d-flex gap-2">
+                    <a asp-action="Detail" asp-route-assignmentId="@item.AssignmentId" class="btn btn-sm btn-outline-primary">Detail</a>
                     <a asp-controller="Submission" asp-action="Create" asp-route-assignmentId="@item.AssignmentId" class="btn btn-sm btn-outline-success">Submit</a>
+                    @if (User.IsInRole("Teacher") || User.IsInRole("Admin"))
+                    {
+                        <a asp-action="Edit" asp-route-assignmentId="@item.AssignmentId" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    }
                     @if ((User.IsInRole("Teacher") || User.IsInRole("Admin")) && item.PublishStatus == Ports.DTO.Common.AssignmentPublishStatusDto.Draft)
                     {
                         <form asp-action="Publish" method="post" class="d-inline">

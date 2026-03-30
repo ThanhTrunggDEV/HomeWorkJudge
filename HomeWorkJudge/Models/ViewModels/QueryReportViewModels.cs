@@ -10,6 +10,8 @@ public sealed class ScoreboardViewModel
 {
     public Guid ClassroomId { get; set; }
 
+    public Guid? AssignmentId { get; set; }
+
     public IReadOnlyList<ScoreboardItemDto> Items { get; set; } = Array.Empty<ScoreboardItemDto>();
 }
 

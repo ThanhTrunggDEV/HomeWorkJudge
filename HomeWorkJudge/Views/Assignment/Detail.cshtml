@@ -1,0 +1,57 @@
+@model AssignmentDetailPageViewModel
+@{
+    ViewData["Title"] = "Assignment Detail";
+}
+
+<h2>Assignment Detail</h2>
+
+@if (Model.Assignment is null)
+{
+    <div class="alert alert-warning">Assignment not found.</div>
+}
+else
+{
+    <div class="d-flex gap-2 mb-3">
+        <a asp-controller="Submission" asp-action="Create" asp-route-assignmentId="@Model.Assignment.AssignmentId" class="btn btn-primary">Submit Code</a>
+        @if (User.IsInRole("Teacher") || User.IsInRole("Admin"))
+        {
+            <a asp-action="Edit" asp-route-assignmentId="@Model.Assignment.AssignmentId" class="btn btn-outline-secondary">Edit</a>
+        }
+        <a asp-action="Index" asp-route-classroomId="@Model.Assignment.ClassroomId" class="btn btn-link">Back to list</a>
+    </div>
+
+    <dl class="row">
+        <dt class="col-sm-3">AssignmentId</dt>
+        <dd class="col-sm-9">@Model.Assignment.AssignmentId</dd>
+
+        <dt class="col-sm-3">ClassroomId</dt>
+        <dd class="col-sm-9">@Model.Assignment.ClassroomId</dd>
+
+        <dt class="col-sm-3">Title</dt>
+        <dd class="col-sm-9">@Model.Assignment.Title</dd>
+
+        <dt class="col-sm-3">Description</dt>
+        <dd class="col-sm-9" style="white-space: pre-wrap">@Model.Assignment.Description</dd>
+
+        <dt class="col-sm-3">Allowed Languages</dt>
+        <dd class="col-sm-9">@string.Join(", ", Model.Assignment.AllowedLanguages)</dd>
+
+        <dt class="col-sm-3">Due Date</dt>
+        <dd class="col-sm-9">@Model.Assignment.DueDate.ToString("u")</dd>
+
+        <dt class="col-sm-3">Publish Status</dt>
+        <dd class="col-sm-9">@Model.Assignment.PublishStatus</dd>
+
+        <dt class="col-sm-3">Grading Type</dt>
+        <dd class="col-sm-9">@Model.Assignment.GradingType</dd>
+
+        <dt class="col-sm-3">Time Limit (ms)</dt>
+        <dd class="col-sm-9">@Model.Assignment.TimeLimitMs</dd>
+
+        <dt class="col-sm-3">Memory Limit (KB)</dt>
+        <dd class="col-sm-9">@Model.Assignment.MemoryLimitKb</dd>
+
+        <dt class="col-sm-3">Max Submissions</dt>
+        <dd class="col-sm-9">@Model.Assignment.MaxSubmissions</dd>
+    </dl>
+}

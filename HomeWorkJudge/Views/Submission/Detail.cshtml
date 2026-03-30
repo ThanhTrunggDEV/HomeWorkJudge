@@ -11,6 +11,13 @@
 }
 else
 {
+    @if (Model.Submission.Status is Ports.DTO.Common.SubmissionStatusDto.Pending or Ports.DTO.Common.SubmissionStatusDto.Executing)
+    {
+        <div class="alert alert-info">
+            Submission is still being processed. This page auto-refreshes every 5 seconds.
+        </div>
+    }
+
     @if (User.IsInRole("Teacher") || User.IsInRole("Admin"))
     {
         <div class="mb-3">
@@ -96,5 +103,16 @@ else
             }
             </tbody>
         </table>
+    }
+}
+
+@if (Model.Submission is not null && (Model.Submission.Status is Ports.DTO.Common.SubmissionStatusDto.Pending or Ports.DTO.Common.SubmissionStatusDto.Executing))
+{
+    @section Scripts {
+        <script>
+            setTimeout(function () {
+                window.location.reload();
+            }, 5000);
+        </script>
     }
 }

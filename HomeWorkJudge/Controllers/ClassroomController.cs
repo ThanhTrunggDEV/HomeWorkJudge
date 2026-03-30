@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Ports.DTO.Classroom;
 using Ports.InBoundPorts.Classroom;
+using Ports.InBoundPorts.Query;
 
 namespace HomeWorkJudge.Controllers;
 
@@ -14,23 +15,44 @@ public sealed class ClassroomController : AppControllerBase
 {
     private readonly ICreateClassroomUseCase _createClassroomUseCase;
     private readonly IJoinClassroomUseCase _joinClassroomUseCase;
+    private readonly IGetAuthorizedClassroomOverviewUseCase _getAuthorizedClassroomOverviewUseCase;
 
     public ClassroomController(
         ICreateClassroomUseCase createClassroomUseCase,
-        IJoinClassroomUseCase joinClassroomUseCase)
+        IJoinClassroomUseCase joinClassroomUseCase,
+        IGetAuthorizedClassroomOverviewUseCase getAuthorizedClassroomOverviewUseCase)
     {
         _createClassroomUseCase = createClassroomUseCase;
         _joinClassroomUseCase = joinClassroomUseCase;
+        _getAuthorizedClassroomOverviewUseCase = getAuthorizedClassroomOverviewUseCase;
     }
 
     [HttpGet]
-    public IActionResult Index(Guid? classroomId = null, string? joinCode = null)
+    public async Task<IActionResult> Index(Guid? classroomId = null, string? joinCode = null)
     {
-        return View(new ClassroomIndexViewModel
+        var model = new ClassroomIndexViewModel
         {
             LastClassroomId = classroomId,
             LastJoinCode = joinCode
-        });
+        };
+
+        if (classroomId.HasValue && classroomId.Value != Guid.Empty && CurrentUserId is not null)
+        {
+            var response = await _getAuthorizedClassroomOverviewUseCase.HandleAsync(
+                classroomId.Value,
+                CurrentUserId.Value,
+                CurrentUserRoleDto);
+
+            var failure = ToAccessActionResult(response.AccessDecision);
+            if (failure is not null)
+            {
+                return failure;
+            }
+
+            model.Overview = response.Classroom;
+        }
+
+        return View(model);
     }
 
     [Authorize(Policy = "TeacherOrAdmin")]

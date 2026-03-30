@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Application.Common;
 using Domain.Ports;
 using Domain.ValueObject;
+using Ports.DTO.Assignment;
+using Ports.DTO.Classroom;
 using Ports.DTO.Common;
 using Ports.DTO.Report;
 using Ports.DTO.Submission;
@@ -120,12 +122,27 @@ public sealed class GetScoreboardUseCase : IGetScoreboardUseCase
         _userRepository = userRepository;
     }
 
-    public async Task<IReadOnlyList<ScoreboardItemDto>> HandleAsync(Guid classroomId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ScoreboardItemDto>> HandleAsync(
+        Guid classroomId,
+        Guid? assignmentId = null,
+        CancellationToken cancellationToken = default)
     {
         var assignments = await _assignmentRepository.GetByClassroomIdAsync(new ClassroomId(classroomId));
         if (assignments.Count == 0)
         {
             return Array.Empty<ScoreboardItemDto>();
+        }
+
+        if (assignmentId.HasValue)
+        {
+            assignments = assignments
+                .Where(x => x.Id.Value == assignmentId.Value)
+                .ToList();
+
+            if (assignments.Count == 0)
+            {
+                return Array.Empty<ScoreboardItemDto>();
+            }
         }
 
         var allSubmissions = new List<Domain.Entity.Submission>();
@@ -222,6 +239,84 @@ public sealed class CheckClassroomAccessUseCase : ICheckClassroomAccessUseCase
         }
 
         return ResourceAccessDecisionDto.Forbidden;
+    }
+}
+
+public sealed class GetAuthorizedClassroomOverviewUseCase : IGetAuthorizedClassroomOverviewUseCase
+{
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IAssignmentRepository _assignmentRepository;
+
+    public GetAuthorizedClassroomOverviewUseCase(
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
+        IAssignmentRepository assignmentRepository)
+    {
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
+        _assignmentRepository = assignmentRepository;
+    }
+
+    public async Task<AuthorizedClassroomOverviewResponseDto> HandleAsync(
+        Guid classroomId,
+        Guid actorUserId,
+        UserRoleDto actorRole,
+        CancellationToken cancellationToken = default)
+    {
+        var classroom = await _classroomRepository.GetByIdAsync(new ClassroomId(classroomId));
+        if (classroom is null)
+        {
+            return new AuthorizedClassroomOverviewResponseDto(ResourceAccessDecisionDto.NotFound, null);
+        }
+
+        var canAccess = actorRole == UserRoleDto.Admin
+            || (actorRole == UserRoleDto.Teacher && classroom.TeacherId.Value == actorUserId)
+            || (actorRole == UserRoleDto.Student && classroom.StudentIds.Any(x => x.Value == actorUserId));
+
+        if (!canAccess)
+        {
+            return new AuthorizedClassroomOverviewResponseDto(ResourceAccessDecisionDto.Forbidden, null);
+        }
+
+        var members = new List<ClassroomMemberDto>();
+
+        var teacher = await _userRepository.GetByIdAsync(classroom.TeacherId);
+        var teacherName = teacher?.FullName ?? classroom.TeacherId.Value.ToString("N");
+        members.Add(new ClassroomMemberDto(classroom.TeacherId.Value, teacherName, UserRoleDto.Teacher));
+
+        foreach (var studentId in classroom.StudentIds)
+        {
+            var student = await _userRepository.GetByIdAsync(studentId);
+            members.Add(new ClassroomMemberDto(
+                studentId.Value,
+                student?.FullName ?? studentId.Value.ToString("N"),
+                UserRoleDto.Student));
+        }
+
+        var assignments = await _assignmentRepository.GetByClassroomIdAsync(classroom.Id);
+        var assignmentItems = assignments
+            .OrderByDescending(x => x.DueDate)
+            .Select(assignment => new AssignmentListItemDto(
+                assignment.Id.Value,
+                assignment.ClassroomId.Value,
+                assignment.Title,
+                assignment.DueDate,
+                EnumMapper.ToDto(assignment.PublishStatus),
+                EnumMapper.ToDto(assignment.GradingType)))
+            .ToList();
+
+        var overview = new ClassroomOverviewDto(
+            classroom.Id.Value,
+            classroom.Name,
+            classroom.JoinCode,
+            classroom.TeacherId.Value,
+            teacherName,
+            classroom.StudentIds.Count,
+            members,
+            assignmentItems);
+
+        return new AuthorizedClassroomOverviewResponseDto(ResourceAccessDecisionDto.Allowed, overview);
     }
 }
 

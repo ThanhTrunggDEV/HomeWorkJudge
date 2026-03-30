@@ -76,3 +76,11 @@ public interface IRejudgeAssignmentUseCase
 {
     Task HandleAsync(Guid assignmentId, CancellationToken cancellationToken = default);
 }
+
+public interface IGetAssignmentDetailUseCase
+{
+    Task<AssignmentDetailDto> HandleAsync(
+        Guid assignmentId,
+        Guid requestedByUserId,
+        CancellationToken cancellationToken = default);
+}

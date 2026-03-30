@@ -20,6 +20,11 @@ public sealed class AssignmentListPageViewModel
     public IReadOnlyList<AssignmentListItemDto> Items { get; set; } = Array.Empty<AssignmentListItemDto>();
 }
 
+public sealed class AssignmentDetailPageViewModel
+{
+    public Ports.DTO.Assignment.AssignmentDetailDto? Assignment { get; set; }
+}
+
 public sealed class CreateAssignmentViewModel
 {
     [NotEmptyGuid]
@@ -59,4 +64,36 @@ public sealed class PublishAssignmentViewModel
 
     [NotEmptyGuid]
     public Guid ClassroomId { get; set; }
+}
+
+public sealed class EditAssignmentViewModel
+{
+    [NotEmptyGuid]
+    public Guid AssignmentId { get; set; }
+
+    [NotEmptyGuid]
+    public Guid ClassroomId { get; set; }
+
+    [Required]
+    [StringLength(180)]
+    public string Title { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(4000)]
+    public string Description { get; set; } = string.Empty;
+
+    [Required]
+    public string AllowedLanguagesCsv { get; set; } = "csharp";
+
+    [Required]
+    public DateTime DueDate { get; set; }
+
+    [Range(1, long.MaxValue)]
+    public long TimeLimitMs { get; set; }
+
+    [Range(1, long.MaxValue)]
+    public long MemoryLimitKb { get; set; }
+
+    [Range(1, int.MaxValue)]
+    public int MaxSubmissions { get; set; }
 }

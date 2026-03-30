@@ -15,16 +15,22 @@ namespace HomeWorkJudge.Controllers;
 public sealed class AssignmentController : AppControllerBase
 {
     private readonly IListAssignmentsUseCase _listAssignmentsUseCase;
+    private readonly IGetAssignmentDetailUseCase _getAssignmentDetailUseCase;
     private readonly ICreateAssignmentUseCase _createAssignmentUseCase;
+    private readonly IUpdateAssignmentUseCase _updateAssignmentUseCase;
     private readonly IPublishAssignmentUseCase _publishAssignmentUseCase;
 
     public AssignmentController(
         IListAssignmentsUseCase listAssignmentsUseCase,
+        IGetAssignmentDetailUseCase getAssignmentDetailUseCase,
         ICreateAssignmentUseCase createAssignmentUseCase,
+        IUpdateAssignmentUseCase updateAssignmentUseCase,
         IPublishAssignmentUseCase publishAssignmentUseCase)
     {
         _listAssignmentsUseCase = listAssignmentsUseCase;
+        _getAssignmentDetailUseCase = getAssignmentDetailUseCase;
         _createAssignmentUseCase = createAssignmentUseCase;
+        _updateAssignmentUseCase = updateAssignmentUseCase;
         _publishAssignmentUseCase = publishAssignmentUseCase;
     }
 
@@ -87,6 +93,114 @@ public sealed class AssignmentController : AppControllerBase
             ClassroomId = classroomId,
             DueDate = DateTime.UtcNow.AddDays(7)
         });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Detail(Guid assignmentId)
+    {
+        if (assignmentId == Guid.Empty)
+        {
+            return BadRequest("AssignmentId is required.");
+        }
+
+        if (CurrentUserId is null)
+        {
+            return Challenge();
+        }
+
+        try
+        {
+            var assignment = await _getAssignmentDetailUseCase.HandleAsync(assignmentId, CurrentUserId.Value);
+            return View(new AssignmentDetailPageViewModel { Assignment = assignment });
+        }
+        catch (DomainException ex)
+        {
+            return ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase)
+                ? NotFound()
+                : Forbid();
+        }
+    }
+
+    [Authorize(Policy = "TeacherOrAdmin")]
+    [HttpGet]
+    public async Task<IActionResult> Edit(Guid assignmentId)
+    {
+        if (assignmentId == Guid.Empty)
+        {
+            return BadRequest("AssignmentId is required.");
+        }
+
+        if (CurrentUserId is null)
+        {
+            return Challenge();
+        }
+
+        try
+        {
+            var assignment = await _getAssignmentDetailUseCase.HandleAsync(assignmentId, CurrentUserId.Value);
+
+            return View(new EditAssignmentViewModel
+            {
+                AssignmentId = assignment.AssignmentId,
+                ClassroomId = assignment.ClassroomId,
+                Title = assignment.Title,
+                Description = assignment.Description,
+                AllowedLanguagesCsv = string.Join(",", assignment.AllowedLanguages),
+                DueDate = assignment.DueDate,
+                TimeLimitMs = assignment.TimeLimitMs,
+                MemoryLimitKb = assignment.MemoryLimitKb,
+                MaxSubmissions = assignment.MaxSubmissions
+            });
+        }
+        catch (DomainException ex)
+        {
+            return ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase)
+                ? NotFound()
+                : Forbid();
+        }
+    }
+
+    [Authorize(Policy = "TeacherOrAdmin")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(EditAssignmentViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        if (CurrentUserId is null)
+        {
+            return Challenge();
+        }
+
+        try
+        {
+            var languages = model.AllowedLanguagesCsv
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+
+            await _updateAssignmentUseCase.HandleAsync(
+                new UpdateAssignmentRequestDto(
+                    model.AssignmentId,
+                    CurrentUserId.Value,
+                    model.Title.Trim(),
+                    model.Description.Trim(),
+                    model.DueDate,
+                    languages,
+                    model.TimeLimitMs,
+                    model.MemoryLimitKb,
+                    model.MaxSubmissions));
+
+            SetSuccess("Assignment updated.");
+            return RedirectToAction(nameof(Detail), new { assignmentId = model.AssignmentId });
+        }
+        catch (DomainException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return View(model);
+        }
     }
 
     [Authorize(Policy = "TeacherOrAdmin")]

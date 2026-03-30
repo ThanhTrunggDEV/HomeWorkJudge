@@ -70,11 +70,19 @@ public sealed class CreateAssignmentUseCase : ICreateAssignmentUseCase
 public sealed class UpdateAssignmentUseCase : IUpdateAssignmentUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateAssignmentUseCase(IAssignmentRepository assignmentRepository, IUnitOfWork unitOfWork)
+    public UpdateAssignmentUseCase(
+        IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork)
     {
         _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -84,6 +92,14 @@ public sealed class UpdateAssignmentUseCase : IUpdateAssignmentUseCase
 
         var assignment = await _assignmentRepository.GetByIdWithTestCasesAsync(new AssignmentId(request.AssignmentId))
             ?? throw new DomainException("Assignment not found.");
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId)
+            ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(request.RequestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanManageClassroom(requester, classroom);
 
         assignment.UpdateOverview(request.Title, request.Description, request.DueDate, AssignmentUseCaseHelpers.ToAllowedLanguages(request.AllowedLanguages));
         assignment.UpdateLimits(request.TimeLimitMs, request.MemoryLimitKb, request.MaxSubmissions);
@@ -387,6 +403,57 @@ public sealed class RejudgeAssignmentUseCase : IRejudgeAssignmentUseCase
 
             await _backgroundJobQueuePort.EnqueueAsync(envelope, cancellationToken);
         }
+    }
+}
+
+public sealed class GetAssignmentDetailUseCase : IGetAssignmentDetailUseCase
+{
+    private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
+
+    public GetAssignmentDetailUseCase(
+        IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository)
+    {
+        _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
+    }
+
+    public async Task<AssignmentDetailDto> HandleAsync(
+        Guid assignmentId,
+        Guid requestedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var assignment = await _assignmentRepository.GetByIdAsync(new AssignmentId(assignmentId))
+            ?? throw new DomainException("Assignment not found.");
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId)
+            ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(requestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanViewClassroom(requester, classroom);
+
+        var languages = assignment.AllowedLanguages
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        return new AssignmentDetailDto(
+            assignment.Id.Value,
+            assignment.ClassroomId.Value,
+            assignment.Title,
+            assignment.Description,
+            languages,
+            assignment.DueDate,
+            EnumMapper.ToDto(assignment.PublishStatus),
+            EnumMapper.ToDto(assignment.GradingType),
+            assignment.TimeLimitMs,
+            assignment.MemoryLimitKb,
+            assignment.MaxSubmissions);
     }
 }
 

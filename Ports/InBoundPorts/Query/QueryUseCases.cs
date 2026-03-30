@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Ports.DTO.Common;
+using Ports.DTO.Classroom;
 using Ports.DTO.Report;
 using Ports.DTO.Submission;
 
@@ -28,6 +29,7 @@ public interface IGetScoreboardUseCase
 {
     Task<IReadOnlyList<ScoreboardItemDto>> HandleAsync(
         Guid classroomId,
+    Guid? assignmentId = null,
         CancellationToken cancellationToken = default);
 }
 
@@ -42,6 +44,15 @@ public interface IGetSubmissionHistoryUseCase
 public interface ICheckClassroomAccessUseCase
 {
     Task<ResourceAccessDecisionDto> HandleAsync(
+        Guid classroomId,
+        Guid actorUserId,
+        UserRoleDto actorRole,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IGetAuthorizedClassroomOverviewUseCase
+{
+    Task<AuthorizedClassroomOverviewResponseDto> HandleAsync(
         Guid classroomId,
         Guid actorUserId,
         UserRoleDto actorRole,

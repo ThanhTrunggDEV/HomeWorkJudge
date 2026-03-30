@@ -9,6 +9,7 @@ public interface IExportScoreReportUseCase
 {
     Task<ExportScoreReportResponseDto> HandleAsync(
         Guid classroomId,
+    Guid? assignmentId,
         string format,
         CancellationToken cancellationToken = default);
 }

@@ -40,6 +40,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICreateAssignmentRubricUseCase, CreateAssignmentRubricUseCase>();
         services.AddScoped<IUpdateAssignmentRubricUseCase, UpdateAssignmentRubricUseCase>();
         services.AddScoped<IRejudgeAssignmentUseCase, RejudgeAssignmentUseCase>();
+        services.AddScoped<IGetAssignmentDetailUseCase, GetAssignmentDetailUseCase>();
 
         services.AddScoped<ISubmitCodeUseCase, SubmitCodeUseCase>();
 
@@ -55,6 +56,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGetScoreboardUseCase, GetScoreboardUseCase>();
         services.AddScoped<IGetSubmissionHistoryUseCase, GetSubmissionHistoryUseCase>();
         services.AddScoped<ICheckClassroomAccessUseCase, CheckClassroomAccessUseCase>();
+        services.AddScoped<IGetAuthorizedClassroomOverviewUseCase, GetAuthorizedClassroomOverviewUseCase>();
 
         services.AddScoped<IExportScoreReportUseCase, ExportScoreReportUseCase>();
 

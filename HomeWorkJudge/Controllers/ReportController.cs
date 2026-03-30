@@ -26,7 +26,7 @@ public sealed class ReportController : AppControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> Scoreboard(Guid classroomId)
+    public async Task<IActionResult> Scoreboard(Guid classroomId, Guid? assignmentId = null)
     {
         if (classroomId != Guid.Empty)
         {
@@ -39,18 +39,19 @@ public sealed class ReportController : AppControllerBase
 
         var items = classroomId == Guid.Empty
             ? Array.Empty<Ports.DTO.Report.ScoreboardItemDto>()
-            : await _getScoreboardUseCase.HandleAsync(classroomId);
+            : await _getScoreboardUseCase.HandleAsync(classroomId, assignmentId);
 
         return View(new ScoreboardViewModel
         {
             ClassroomId = classroomId,
+            AssignmentId = assignmentId,
             Items = items
         });
     }
 
     [Authorize(Policy = "TeacherOrAdmin")]
     [HttpGet]
-    public async Task<IActionResult> Export(Guid classroomId, string format = "csv")
+    public async Task<IActionResult> Export(Guid classroomId, Guid? assignmentId = null, string format = "csv")
     {
         if (classroomId == Guid.Empty)
         {
@@ -63,7 +64,7 @@ public sealed class ReportController : AppControllerBase
             return accessResult;
         }
 
-        var report = await _exportScoreReportUseCase.HandleAsync(classroomId, format);
+        var report = await _exportScoreReportUseCase.HandleAsync(classroomId, assignmentId, format);
         return File(report.Content, report.ContentType, report.FileName);
     }
 

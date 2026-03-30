@@ -23,10 +23,11 @@ public sealed class ExportScoreReportUseCase : IExportScoreReportUseCase
 
     public async Task<ExportScoreReportResponseDto> HandleAsync(
         Guid classroomId,
+        Guid? assignmentId,
         string format,
         CancellationToken cancellationToken = default)
     {
-        var scoreboard = await _getScoreboardUseCase.HandleAsync(classroomId, cancellationToken);
+        var scoreboard = await _getScoreboardUseCase.HandleAsync(classroomId, assignmentId, cancellationToken);
         return await _reportExportPort.ExportScoreboardAsync(scoreboard, format, cancellationToken);
     }
 }
