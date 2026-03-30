@@ -31,7 +31,9 @@ public static class ServiceCollectionExtensions
     {
         var infrastructureSection = configuration.GetSection("Infrastructure");
         var queueOptions = infrastructureSection.GetSection("Queue").Get<QueueOptions>() ?? new QueueOptions();
+        var aiOptions = infrastructureSection.GetSection("AI").Get<AiOptions>() ?? new AiOptions();
         var queueProvider = queueOptions.Provider?.Trim() ?? "InMemory";
+        var aiProvider = aiOptions.Provider?.Trim() ?? "OpenAI";
         var isDevelopment = hostEnvironment?.IsDevelopment() ??
             string.Equals(
                 Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
@@ -80,7 +82,30 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICodeCompilationPort, LocalCodeCompilationPort>();
         services.AddScoped<ICodeExecutionPort, LocalCodeExecutionPort>();
         services.AddScoped<ITestCaseJudgePort, LocalTestCaseJudgePort>();
-        services.AddScoped<IAiGradingPort, MockAiGradingPort>();
+
+        if (string.Equals(aiProvider, "OpenAI", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHttpClient<OpenAiGradingPort>(client =>
+            {
+                var timeoutSeconds = Math.Max(1, aiOptions.TimeoutSeconds);
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            });
+            services.AddScoped<IAiGradingPort>(sp => sp.GetRequiredService<OpenAiGradingPort>());
+        }
+        else if (string.Equals(aiProvider, "Gemini", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHttpClient<GeminiGradingPort>(client =>
+            {
+                var timeoutSeconds = Math.Max(1, aiOptions.TimeoutSeconds);
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            });
+            services.AddScoped<IAiGradingPort>(sp => sp.GetRequiredService<GeminiGradingPort>());
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unsupported AI.Provider '{aiProvider}'. Supported values: OpenAI, Gemini.");
+        }
+
         services.AddScoped<IRubricGradingPort, HybridRubricGradingPort>();
         services.AddScoped<IPlagiarismDetectionPort, LocalPlagiarismDetectionPort>();
 

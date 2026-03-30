@@ -14,7 +14,7 @@ public sealed class InfrastructureOptions
 
 public sealed class QueueOptions
 {
-    public string Provider { get; set; } = "InMemory";
+    public string Provider { get; set; } = "RabbitMq";
     public string ConsumerMode { get; set; } = "Worker";
     public bool AllowInProcessInDevelopment { get; set; } = true;
     public int MaxRetryCount { get; set; } = 3;
@@ -53,9 +53,27 @@ public sealed class JudgingOptions
 
 public sealed class AiOptions
 {
-    public string Provider { get; set; } = "Mock";
+    public string Provider { get; set; } = "OpenAI";
     public int TimeoutSeconds { get; set; } = 20;
     public int RetryCount { get; set; } = 1;
+    public OpenAiProviderOptions OpenAI { get; set; } = new();
+    public GeminiProviderOptions Gemini { get; set; } = new();
+}
+
+public sealed class OpenAiProviderOptions
+{
+    public string BaseUrl { get; set; } = "https://api.openai.com";
+    public string ApiKey { get; set; } = string.Empty;
+    public string Model { get; set; } = "gpt-4.1-mini";
+    public double Temperature { get; set; } = 0.2;
+}
+
+public sealed class GeminiProviderOptions
+{
+    public string BaseUrl { get; set; } = "https://generativelanguage.googleapis.com";
+    public string ApiKey { get; set; } = string.Empty;
+    public string Model { get; set; } = "gemini-3.0-flash-preview";
+    public double Temperature { get; set; } = 0.2;
 }
 
 public sealed class RubricOptions
