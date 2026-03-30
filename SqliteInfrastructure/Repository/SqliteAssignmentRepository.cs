@@ -18,6 +18,55 @@ public sealed class SqliteAssignmentRepository : IAssignmentRepository
 
     public Task<Assignment?> GetByIdAsync(AssignmentId id) => GetByIdWithTestCasesAsync(id);
 
+    public async Task<IReadOnlyList<Assignment>> GetByClassroomIdAsync(ClassroomId classroomId)
+    {
+        var assignmentRecords = await _context.Assignments
+            .AsNoTracking()
+            .Where(x => x.ClassroomId == classroomId.Value)
+            .OrderBy(x => x.DueDate)
+            .ToListAsync();
+
+        if (assignmentRecords.Count == 0)
+        {
+            return new List<Assignment>();
+        }
+
+        var assignmentIds = assignmentRecords.Select(x => x.Id).ToList();
+
+        var allTestCases = await _context.TestCases
+            .AsNoTracking()
+            .Where(x => assignmentIds.Contains(x.AssignmentId))
+            .ToListAsync();
+
+        var allRubrics = await _context.Rubrics
+            .AsNoTracking()
+            .Where(x => assignmentIds.Contains(x.AssignmentId))
+            .ToListAsync();
+
+        var testCaseLookup = allTestCases
+            .GroupBy(x => x.AssignmentId)
+            .ToDictionary(x => x.Key, x => (IReadOnlyList<PersistenceModel.TestCaseRecord>)x.OrderBy(r => r.Id).ToList());
+
+        var rubricLookup = allRubrics
+            .ToDictionary(x => x.AssignmentId, x => x);
+
+        var assignments = assignmentRecords
+            .Select(record =>
+            {
+                var testCases = testCaseLookup.TryGetValue(record.Id, out var t)
+                    ? t
+                    : new List<PersistenceModel.TestCaseRecord>();
+                var rubric = rubricLookup.TryGetValue(record.Id, out var r)
+                    ? r
+                    : null;
+
+                return SqliteEntityMapper.ToDomain(record, testCases, rubric);
+            })
+            .ToList();
+
+        return assignments;
+    }
+
     public async Task<Assignment?> GetByIdWithTestCasesAsync(AssignmentId id)
     {
         var assignmentRecord = await _context.Assignments

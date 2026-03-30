@@ -24,6 +24,21 @@ public sealed class SqliteUserRepository : IUserRepository
         return record is null ? null : SqliteEntityMapper.ToDomain(record);
     }
 
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
+        }
+
+        var normalizedEmail = email.Trim();
+        var record = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Email == normalizedEmail);
+
+        return record is null ? null : SqliteEntityMapper.ToDomain(record);
+    }
+
     public Task AddAsync(User user)
     {
         _context.Users.Add(SqliteEntityMapper.ToRecord(user));

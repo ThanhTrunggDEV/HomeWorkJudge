@@ -87,6 +87,51 @@ public sealed class SqliteSubmissionRepository : ISubmissionRepository
         return submissions;
     }
 
+    public async Task<IReadOnlyList<Submission>> GetByStudentIdAsync(UserId studentId)
+    {
+        var submissionRecords = await _context.Submissions
+            .AsNoTracking()
+            .Where(x => x.StudentId == studentId.Value)
+            .OrderByDescending(x => x.SubmitTime)
+            .ToListAsync();
+
+        if (submissionRecords.Count == 0)
+        {
+            return new List<Submission>();
+        }
+
+        var submissionIds = submissionRecords.Select(x => x.Id).ToList();
+
+        var allTestCaseResults = await _context.SubmissionTestCaseResults
+            .AsNoTracking()
+            .Where(x => submissionIds.Contains(x.SubmissionId))
+            .ToListAsync();
+
+        var allRubricResults = await _context.SubmissionRubricResults
+            .AsNoTracking()
+            .Where(x => submissionIds.Contains(x.SubmissionId))
+            .ToListAsync();
+
+        var testCaseLookup = allTestCaseResults
+            .GroupBy(x => x.SubmissionId)
+            .ToDictionary(x => x.Key, x => (IReadOnlyList<PersistenceModel.SubmissionTestCaseResultRecord>)x.OrderBy(r => r.SortOrder).ToList());
+
+        var rubricLookup = allRubricResults
+            .GroupBy(x => x.SubmissionId)
+            .ToDictionary(x => x.Key, x => (IReadOnlyList<PersistenceModel.SubmissionRubricResultRecord>)x.OrderBy(r => r.SortOrder).ToList());
+
+        var submissions = submissionRecords
+            .Select(record =>
+            {
+                var testCaseResults = testCaseLookup.TryGetValue(record.Id, out var t) ? t : new List<PersistenceModel.SubmissionTestCaseResultRecord>();
+                var rubricResults = rubricLookup.TryGetValue(record.Id, out var r) ? r : new List<PersistenceModel.SubmissionRubricResultRecord>();
+                return SqliteEntityMapper.ToDomain(record, testCaseResults, rubricResults);
+            })
+            .ToList();
+
+        return submissions;
+    }
+
     public Task AddAsync(Submission submission)
     {
         var submissionId = submission.Id.Value;

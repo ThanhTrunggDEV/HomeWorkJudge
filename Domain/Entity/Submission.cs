@@ -82,4 +82,37 @@ public class Submission : EntityBase
         TotalScore -= TotalScore * penaltyPercent / 100.0;
         if (TotalScore < 0) TotalScore = 0;
     }
+
+    public void OverrideTotalScore(double newTotalScore)
+    {
+        if (newTotalScore < 0)
+        {
+            throw new DomainException("Total score cannot be negative.");
+        }
+
+        TotalScore = newTotalScore;
+    }
+
+    public void OverrideRubricCriteriaScore(string criteriaName, double newScore)
+    {
+        if (string.IsNullOrWhiteSpace(criteriaName))
+        {
+            throw new DomainException("Criteria name cannot be empty.");
+        }
+
+        if (newScore < 0)
+        {
+            throw new DomainException("Criteria score cannot be negative.");
+        }
+
+        var index = _rubricResults.FindIndex(x => string.Equals(x.CriteriaName, criteriaName, StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+        {
+            throw new DomainException("Rubric criteria not found.");
+        }
+
+        var existing = _rubricResults[index];
+        _rubricResults[index] = existing with { GivenScore = newScore };
+        TotalScore = _rubricResults.Sum(r => r.GivenScore);
+    }
 }

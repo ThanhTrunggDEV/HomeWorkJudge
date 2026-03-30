@@ -42,6 +42,17 @@ public class Assignment : EntityBase
         MaxSubmissions = 100;
     }
 
+    public void UpdateOverview(string title, string description, DateTime dueDate, string allowedLanguages)
+    {
+        if (string.IsNullOrWhiteSpace(title)) throw new DomainException("Title cannot be empty.");
+        if (string.IsNullOrWhiteSpace(allowedLanguages)) throw new DomainException("Allowed languages cannot be empty.");
+
+        Title = title;
+        Description = description ?? string.Empty;
+        DueDate = dueDate;
+        AllowedLanguages = allowedLanguages;
+    }
+
     public void UpdateLimits(long timeLimitMs, long memoryLimitKb, int maxSubmissions)
     {
         if (timeLimitMs <= 0) throw new DomainException("Time limit must be positive.");
@@ -58,6 +69,26 @@ public class Assignment : EntityBase
         if (GradingType != GradingType.TestCase) throw new DomainException("Cannot add test cases to a non-TestCase grading assignment.");
         if (testCase == null) throw new ArgumentNullException(nameof(testCase));
         _testCases.Add(testCase);
+    }
+
+    public void UpdateTestCase(TestCaseId testCaseId, string inputData, string expectedOutput, bool isHidden, double scoreWeight)
+    {
+        if (GradingType != GradingType.TestCase) throw new DomainException("Cannot update test cases for a non-TestCase grading assignment.");
+
+        var testCase = _testCases.FirstOrDefault(x => x.Id == testCaseId)
+            ?? throw new DomainException("Test case not found.");
+
+        testCase.UpdateDetails(inputData, expectedOutput, isHidden, scoreWeight);
+    }
+
+    public void RemoveTestCase(TestCaseId testCaseId)
+    {
+        if (GradingType != GradingType.TestCase) throw new DomainException("Cannot remove test cases from a non-TestCase grading assignment.");
+
+        var testCase = _testCases.FirstOrDefault(x => x.Id == testCaseId)
+            ?? throw new DomainException("Test case not found.");
+
+        _testCases.Remove(testCase);
     }
     
     public void SetRubric(Rubric rubric) 

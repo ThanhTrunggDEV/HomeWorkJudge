@@ -37,6 +37,32 @@ public sealed class SqliteClassroomRepository : IClassroomRepository
         return SqliteEntityMapper.ToDomain(classroomRecord, studentIds);
     }
 
+    public async Task<Classroom?> GetByJoinCodeAsync(string joinCode)
+    {
+        if (string.IsNullOrWhiteSpace(joinCode))
+        {
+            return null;
+        }
+
+        var normalizedJoinCode = joinCode.Trim().ToUpperInvariant();
+        var classroomRecord = await _context.Classrooms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.JoinCode == normalizedJoinCode);
+
+        if (classroomRecord is null)
+        {
+            return null;
+        }
+
+        var studentIds = await _context.ClassroomStudents
+            .AsNoTracking()
+            .Where(x => x.ClassroomId == classroomRecord.Id)
+            .Select(x => x.StudentId)
+            .ToListAsync();
+
+        return SqliteEntityMapper.ToDomain(classroomRecord, studentIds);
+    }
+
     public Task AddAsync(Classroom classroom)
     {
         var classroomRecord = SqliteEntityMapper.ToRecord(classroom);
