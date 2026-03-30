@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -138,7 +142,7 @@ internal static class ProcessExecutionHelper
             long currentMemoryKb;
             try
             {
-                currentMemoryKb = process.WorkingSet64 / 1024;
+                currentMemoryKb = GetProcessTreeWorkingSetKb(process);
             }
             catch
             {
@@ -173,4 +177,204 @@ internal static class ProcessExecutionHelper
             }
         }
     }
+
+    private static long GetProcessTreeWorkingSetKb(Process rootProcess)
+    {
+        if (rootProcess.HasExited)
+        {
+            return 0;
+        }
+
+        var processTree = BuildProcessTree();
+        var queue = new Queue<int>();
+        var visited = new HashSet<int>();
+
+        queue.Enqueue(rootProcess.Id);
+
+        long totalWorkingSetKb = 0;
+        while (queue.Count > 0)
+        {
+            var processId = queue.Dequeue();
+            if (!visited.Add(processId))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var process = Process.GetProcessById(processId);
+                if (!process.HasExited)
+                {
+                    totalWorkingSetKb += process.WorkingSet64 / 1024;
+                }
+            }
+            catch
+            {
+                // Best effort metrics; ignore process that disappeared.
+            }
+
+            if (processTree.TryGetValue(processId, out var childProcessIds))
+            {
+                foreach (var childProcessId in childProcessIds)
+                {
+                    queue.Enqueue(childProcessId);
+                }
+            }
+        }
+
+        return totalWorkingSetKb;
+    }
+
+    private static Dictionary<int, List<int>> BuildProcessTree()
+    {
+        var processTree = new Dictionary<int, List<int>>();
+
+        foreach (var process in Process.GetProcesses())
+        {
+            try
+            {
+                var parentProcessId = TryGetParentProcessId(process.Id);
+                if (!parentProcessId.HasValue || parentProcessId <= 0)
+                {
+                    continue;
+                }
+
+                if (!processTree.TryGetValue(parentProcessId.Value, out var childProcessIds))
+                {
+                    childProcessIds = [];
+                    processTree[parentProcessId.Value] = childProcessIds;
+                }
+
+                childProcessIds.Add(process.Id);
+            }
+            catch
+            {
+                // Best effort metrics.
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        return processTree;
+    }
+
+    private static int? TryGetParentProcessId(int processId)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return TryGetParentProcessIdWindows(processId);
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            return TryGetParentProcessIdLinux(processId);
+        }
+
+        return null;
+    }
+
+    private static int? TryGetParentProcessIdLinux(int processId)
+    {
+        try
+        {
+            var statPath = $"/proc/{processId}/stat";
+            if (!File.Exists(statPath))
+            {
+                return null;
+            }
+
+            var content = File.ReadAllText(statPath);
+            var closeParenthesisIndex = content.LastIndexOf(')');
+            if (closeParenthesisIndex < 0 || closeParenthesisIndex + 2 >= content.Length)
+            {
+                return null;
+            }
+
+            var remaining = content.Substring(closeParenthesisIndex + 2);
+            var parts = remaining.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length < 2)
+            {
+                return null;
+            }
+
+            return int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parentProcessId)
+                ? parentProcessId
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static int? TryGetParentProcessIdWindows(int processId)
+    {
+        var snapshotHandle = CreateToolhelp32Snapshot(Th32csSnapprocess, 0);
+        if (snapshotHandle == InvalidHandleValue)
+        {
+            return null;
+        }
+
+        try
+        {
+            var processEntry = new ProcessEntry32
+            {
+                DwSize = (uint)Marshal.SizeOf<ProcessEntry32>()
+            };
+
+            if (!Process32First(snapshotHandle, ref processEntry))
+            {
+                return null;
+            }
+
+            do
+            {
+                if (processEntry.Th32ProcessId == processId)
+                {
+                    return processEntry.Th32ParentProcessId;
+                }
+            }
+            while (Process32Next(snapshotHandle, ref processEntry));
+
+            return null;
+        }
+        finally
+        {
+            CloseHandle(snapshotHandle);
+        }
+    }
+
+    private const uint Th32csSnapprocess = 0x00000002;
+    private static readonly IntPtr InvalidHandleValue = new(-1);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private struct ProcessEntry32
+    {
+        public uint DwSize;
+        public uint CntUsage;
+        public int Th32ProcessId;
+        public IntPtr Th32DefaultHeapId;
+        public uint Th32ModuleId;
+        public uint CntThreads;
+        public int Th32ParentProcessId;
+        public int PcPriClassBase;
+        public uint DwFlags;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string SzExeFile;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessId);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern bool Process32First(IntPtr hSnapshot, ref ProcessEntry32 lppe);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern bool Process32Next(IntPtr hSnapshot, ref ProcessEntry32 lppe);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr hObject);
 }

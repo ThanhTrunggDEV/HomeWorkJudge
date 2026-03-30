@@ -12,6 +12,8 @@ namespace InfrastructureService.OutBoundAdapters.Judging;
 
 public sealed class LocalTestCaseJudgePort : ITestCaseJudgePort
 {
+    private static readonly string WorkspaceRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "homeworkjudge", "judging"));
+
     private readonly ICodeCompilationPort _compilationPort;
     private readonly ICodeExecutionPort _executionPort;
     private readonly ILogger<LocalTestCaseJudgePort> _logger;
@@ -126,10 +128,10 @@ public sealed class LocalTestCaseJudgePort : ITestCaseJudgePort
             return;
         }
 
-        var allowedRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "homeworkjudge", "judging"));
-        var normalizedWorkspacePath = Path.GetFullPath(workspacePath);
+        var normalizedWorkspacePath = Path.GetFullPath(workspacePath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-        if (!normalizedWorkspacePath.StartsWith(allowedRoot, StringComparison.OrdinalIgnoreCase))
+        if (!IsPathUnderRoot(normalizedWorkspacePath, WorkspaceRoot))
         {
             _logger.LogWarning("Skip workspace cleanup because path {WorkspacePath} is outside allowed root.", normalizedWorkspacePath);
             return;
@@ -150,12 +152,45 @@ public sealed class LocalTestCaseJudgePort : ITestCaseJudgePort
 
     private static string? ResolveWorkspacePath(string artifactPath)
     {
-        var current = Path.GetDirectoryName(artifactPath);
-        for (var i = 0; i < 4 && !string.IsNullOrWhiteSpace(current); i++)
+        var artifactFullPath = Path.GetFullPath(artifactPath);
+        var artifactDirectory = Path.GetDirectoryName(artifactFullPath);
+        if (string.IsNullOrWhiteSpace(artifactDirectory))
         {
-            current = Directory.GetParent(current)?.FullName;
+            return null;
         }
 
-        return current;
+        var netDirectory = new DirectoryInfo(artifactDirectory);
+        var releaseDirectory = netDirectory.Parent;
+        var binDirectory = releaseDirectory?.Parent;
+        var workspaceDirectory = binDirectory?.Parent;
+
+        if (workspaceDirectory is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(binDirectory?.Name, "bin", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (!Guid.TryParseExact(workspaceDirectory.Name, "N", out _))
+        {
+            return null;
+        }
+
+        return workspaceDirectory.FullName;
+    }
+
+    private static bool IsPathUnderRoot(string candidatePath, string rootPath)
+    {
+        var normalizedRootPath = Path.GetFullPath(rootPath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedCandidatePath = Path.GetFullPath(candidatePath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        var rootWithSeparator = normalizedRootPath + Path.DirectorySeparatorChar;
+
+        return normalizedCandidatePath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
     }
 }

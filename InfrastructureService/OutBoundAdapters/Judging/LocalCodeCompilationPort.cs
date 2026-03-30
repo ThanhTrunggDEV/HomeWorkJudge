@@ -15,9 +15,12 @@ namespace InfrastructureService.OutBoundAdapters.Judging;
 
 public sealed class LocalCodeCompilationPort : ICodeCompilationPort
 {
+    private static readonly string WorkspaceRoot = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "homeworkjudge", "judging"));
+
     private readonly IOperationExecutor _operationExecutor;
     private readonly JudgingOptions _options;
     private readonly ILogger<LocalCodeCompilationPort> _logger;
+    private readonly TimeSpan _workspaceRetention;
 
     public LocalCodeCompilationPort(
         IOperationExecutor operationExecutor,
@@ -27,6 +30,9 @@ public sealed class LocalCodeCompilationPort : ICodeCompilationPort
         _operationExecutor = operationExecutor;
         _options = options.Value;
         _logger = logger;
+        _workspaceRetention = TimeSpan.FromMinutes(Math.Max(1, _options.WorkspaceRetentionMinutes));
+
+        Directory.CreateDirectory(WorkspaceRoot);
     }
 
     public Task<CodeCompilationResultDto> CompileAsync(
@@ -64,11 +70,9 @@ public sealed class LocalCodeCompilationPort : ICodeCompilationPort
                 null);
         }
 
-        var workspacePath = Path.Combine(
-            Path.GetTempPath(),
-            "homeworkjudge",
-            "judging",
-            Guid.NewGuid().ToString("N"));
+            CleanupStaleWorkspaces();
+
+            var workspacePath = Path.Combine(WorkspaceRoot, Guid.NewGuid().ToString("N"));
 
         Directory.CreateDirectory(workspacePath);
         var keepWorkspace = false;
@@ -150,6 +154,12 @@ public sealed class LocalCodeCompilationPort : ICodeCompilationPort
 
     private void TryDeleteWorkspace(string workspacePath)
     {
+        if (!IsWorkspacePathAllowed(workspacePath))
+        {
+            _logger.LogWarning("Skip cleanup for workspace path {WorkspacePath} because it is outside allowed judging root.", workspacePath);
+            return;
+        }
+
         try
         {
             if (Directory.Exists(workspacePath))
@@ -161,5 +171,56 @@ public sealed class LocalCodeCompilationPort : ICodeCompilationPort
         {
             _logger.LogWarning(ex, "Failed to clean compilation workspace {WorkspacePath}.", workspacePath);
         }
+    }
+
+    private void CleanupStaleWorkspaces()
+    {
+        try
+        {
+            var cutoffUtc = DateTime.UtcNow.Subtract(_workspaceRetention);
+
+            foreach (var directoryPath in Directory.EnumerateDirectories(WorkspaceRoot))
+            {
+                if (!IsWorkspacePathAllowed(directoryPath))
+                {
+                    continue;
+                }
+
+                var lastWriteUtc = Directory.GetLastWriteTimeUtc(directoryPath);
+                if (lastWriteUtc >= cutoffUtc)
+                {
+                    continue;
+                }
+
+                Directory.Delete(directoryPath, recursive: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to cleanup stale judging workspaces under {WorkspaceRoot}.", WorkspaceRoot);
+        }
+    }
+
+    private static bool IsWorkspacePathAllowed(string workspacePath)
+    {
+        if (string.IsNullOrWhiteSpace(workspacePath))
+        {
+            return false;
+        }
+
+        var normalizedRootPath = Path.GetFullPath(WorkspaceRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedWorkspacePath = Path.GetFullPath(workspacePath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        var rootWithSeparator = normalizedRootPath + Path.DirectorySeparatorChar;
+        var isUnderRoot = normalizedWorkspacePath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
+        if (!isUnderRoot)
+        {
+            return false;
+        }
+
+        var directoryName = Path.GetFileName(normalizedWorkspacePath);
+        return Guid.TryParseExact(directoryName, "N", out _);
     }
 }

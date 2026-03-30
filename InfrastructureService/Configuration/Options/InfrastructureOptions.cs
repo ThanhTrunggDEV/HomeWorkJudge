@@ -47,6 +47,7 @@ public sealed class JudgingOptions
     public bool AllowUnsafeLocalExecution { get; set; } = false;
     public int CompileTimeoutSeconds { get; set; } = 10;
     public int ExecuteTimeoutSeconds { get; set; } = 5;
+    public int WorkspaceRetentionMinutes { get; set; } = 30;
     public int RetryCount { get; set; } = 1;
 }
 
