@@ -11,6 +11,10 @@
 }
 else
 {
+    var totalPages = (int)Math.Ceiling((double)Model.Page.TotalCount / Model.Page.PageSize);
+    var hasPrevious = Model.Page.PageNumber > 1;
+    var hasNext = Model.Page.PageNumber < totalPages;
+
     <table class="table table-striped">
         <thead>
             <tr>
@@ -38,4 +42,24 @@ else
         }
         </tbody>
     </table>
+
+    <div class="d-flex justify-content-between align-items-center">
+        <span class="text-muted">
+            Page @Model.Page.PageNumber / @totalPages, total @Model.Page.TotalCount submissions
+        </span>
+        <div class="btn-group">
+            <a asp-action="History"
+               asp-route-pageNumber="@(hasPrevious ? Model.Page.PageNumber - 1 : 1)"
+               asp-route-pageSize="@Model.Page.PageSize"
+               class="btn btn-outline-secondary @(hasPrevious ? "" : "disabled")">
+                Previous
+            </a>
+            <a asp-action="History"
+               asp-route-pageNumber="@(hasNext ? Model.Page.PageNumber + 1 : Model.Page.PageNumber)"
+               asp-route-pageSize="@Model.Page.PageSize"
+               class="btn btn-outline-secondary @(hasNext ? "" : "disabled")">
+                Next
+            </a>
+        </div>
+    </div>
 }

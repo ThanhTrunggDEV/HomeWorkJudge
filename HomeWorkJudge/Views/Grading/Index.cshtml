@@ -53,6 +53,87 @@
     </div>
 </div>
 
+<div class="card mt-3">
+    <div class="card-header">Review AI Rubric Result</div>
+    <div class="card-body">
+        <form asp-action="ReviewRubric" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="SubmissionId" />
+
+            <div class="col-md-4">
+                <label class="form-label">Decision</label>
+                <select asp-for="IsApproved" class="form-select">
+                    <option value="true">Approve</option>
+                    <option value="false">Reject and Queue Retry</option>
+                </select>
+            </div>
+
+            <div class="col-md-8">
+                <label asp-for="TeacherComment" class="form-label"></label>
+                <input asp-for="TeacherComment" class="form-control" />
+                <span class="form-text">Required when decision is Reject.</span>
+            </div>
+
+            <div class="col-12">
+                <button class="btn btn-outline-primary" type="submit">Submit Review Decision</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">Override Rubric Criteria Score</div>
+    <div class="card-body">
+        <form asp-action="OverrideRubricCriteria" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="SubmissionId" />
+
+            <div class="col-md-4">
+                <label asp-for="CriteriaName" class="form-label"></label>
+                <input asp-for="CriteriaName" class="form-control" />
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="NewCriteriaScore" class="form-label"></label>
+                <input asp-for="NewCriteriaScore" class="form-control" />
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="CriteriaOverrideReason" class="form-label"></label>
+                <input asp-for="CriteriaOverrideReason" class="form-control" />
+            </div>
+
+            <div class="col-12">
+                <button class="btn btn-outline-danger" type="submit">Override Criteria Score</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header">Explain Rubric Deduction</div>
+    <div class="card-body">
+        <form asp-action="ExplainRubric" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="SubmissionId" />
+
+            <div class="col-md-4">
+                <label asp-for="CriteriaName" class="form-label"></label>
+                <input asp-for="CriteriaName" class="form-control" />
+            </div>
+
+            <div class="col-md-8">
+                <label asp-for="StudentQuestion" class="form-label"></label>
+                <input asp-for="StudentQuestion" class="form-control" placeholder="Why did this criteria lose points?" />
+            </div>
+
+            <div class="col-12">
+                <button class="btn btn-outline-secondary" type="submit">Generate Explanation</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }

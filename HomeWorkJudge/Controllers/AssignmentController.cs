@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Domain.Exception;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Ports.DTO.Assignment;
 using Ports.DTO.Common;
+using Ports.DTO.Rubric;
 using Ports.InBoundPorts.Assignment;
 
 namespace HomeWorkJudge.Controllers;
@@ -19,19 +21,31 @@ public sealed class AssignmentController : AppControllerBase
     private readonly ICreateAssignmentUseCase _createAssignmentUseCase;
     private readonly IUpdateAssignmentUseCase _updateAssignmentUseCase;
     private readonly IPublishAssignmentUseCase _publishAssignmentUseCase;
+    private readonly IAddAssignmentTestCaseUseCase _addAssignmentTestCaseUseCase;
+    private readonly IUpdateAssignmentTestCaseUseCase _updateAssignmentTestCaseUseCase;
+    private readonly IDeleteAssignmentTestCaseUseCase _deleteAssignmentTestCaseUseCase;
+    private readonly IUpdateAssignmentRubricUseCase _updateAssignmentRubricUseCase;
 
     public AssignmentController(
         IListAssignmentsUseCase listAssignmentsUseCase,
         IGetAssignmentDetailUseCase getAssignmentDetailUseCase,
         ICreateAssignmentUseCase createAssignmentUseCase,
         IUpdateAssignmentUseCase updateAssignmentUseCase,
-        IPublishAssignmentUseCase publishAssignmentUseCase)
+        IPublishAssignmentUseCase publishAssignmentUseCase,
+        IAddAssignmentTestCaseUseCase addAssignmentTestCaseUseCase,
+        IUpdateAssignmentTestCaseUseCase updateAssignmentTestCaseUseCase,
+        IDeleteAssignmentTestCaseUseCase deleteAssignmentTestCaseUseCase,
+        IUpdateAssignmentRubricUseCase updateAssignmentRubricUseCase)
     {
         _listAssignmentsUseCase = listAssignmentsUseCase;
         _getAssignmentDetailUseCase = getAssignmentDetailUseCase;
         _createAssignmentUseCase = createAssignmentUseCase;
         _updateAssignmentUseCase = updateAssignmentUseCase;
         _publishAssignmentUseCase = publishAssignmentUseCase;
+        _addAssignmentTestCaseUseCase = addAssignmentTestCaseUseCase;
+        _updateAssignmentTestCaseUseCase = updateAssignmentTestCaseUseCase;
+        _deleteAssignmentTestCaseUseCase = deleteAssignmentTestCaseUseCase;
+        _updateAssignmentRubricUseCase = updateAssignmentRubricUseCase;
     }
 
     [HttpGet]
@@ -111,7 +125,16 @@ public sealed class AssignmentController : AppControllerBase
         try
         {
             var assignment = await _getAssignmentDetailUseCase.HandleAsync(assignmentId, CurrentUserId.Value);
-            return View(new AssignmentDetailPageViewModel { Assignment = assignment });
+            return View(new AssignmentDetailPageViewModel
+            {
+                Assignment = assignment,
+                AddTestCaseForm = new AddAssignmentTestCaseViewModel { AssignmentId = assignment.AssignmentId },
+                RubricForm = new UpsertAssignmentRubricViewModel
+                {
+                    AssignmentId = assignment.AssignmentId,
+                    CriteriaText = BuildRubricCriteriaText(assignment.RubricCriteria)
+                }
+            });
         }
         catch (DomainException ex)
         {
@@ -119,6 +142,148 @@ public sealed class AssignmentController : AppControllerBase
                 ? NotFound()
                 : Forbid();
         }
+    }
+
+    [Authorize(Policy = "TeacherOrAdmin")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddTestCase(AddAssignmentTestCaseViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            SetError("Invalid test case payload.");
+            return RedirectToAction(nameof(Detail), new { assignmentId = model.AssignmentId });
+        }
+
+        if (CurrentUserId is null)
+        {
+            return Challenge();
+        }
+
+        try
+        {
+            await _addAssignmentTestCaseUseCase.HandleAsync(
+                new AddAssignmentTestCaseRequestDto(
+                    model.AssignmentId,
+                    CurrentUserId.Value,
+                    model.InputData,
+                    model.ExpectedOutput,
+                    model.IsHidden,
+                    model.ScoreWeight));
+
+            SetSuccess("Test case added.");
+        }
+        catch (DomainException ex)
+        {
+            SetError(ex.Message);
+        }
+
+        return RedirectToAction(nameof(Detail), new { assignmentId = model.AssignmentId });
+    }
+
+    [Authorize(Policy = "TeacherOrAdmin")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateTestCase(UpdateAssignmentTestCaseViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            SetError("Invalid test case update payload.");
+            return RedirectToAction(nameof(Detail), new { assignmentId = model.AssignmentId });
+        }
+
+        if (CurrentUserId is null)
+        {
+            return Challenge();
+        }
+
+        try
+        {
+            await _updateAssignmentTestCaseUseCase.HandleAsync(
+                new UpdateAssignmentTestCaseRequestDto(
+                    model.AssignmentId,
+                    CurrentUserId.Value,
+                    model.TestCaseId,
+                    model.InputData,
+                    model.ExpectedOutput,
+                    model.IsHidden,
+                    model.ScoreWeight));
+
+            SetSuccess("Test case updated.");
+        }
+        catch (DomainException ex)
+        {
+            SetError(ex.Message);
+        }
+
+        return RedirectToAction(nameof(Detail), new { assignmentId = model.AssignmentId });
+    }
+
+    [Authorize(Policy = "TeacherOrAdmin")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteTestCase(DeleteAssignmentTestCaseViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            SetError("Invalid delete payload.");
+            return RedirectToAction(nameof(Detail), new { assignmentId = model.AssignmentId });
+        }
+
+        if (CurrentUserId is null)
+        {
+            return Challenge();
+        }
+
+        try
+        {
+            await _deleteAssignmentTestCaseUseCase.HandleAsync(
+                new DeleteAssignmentTestCaseRequestDto(model.AssignmentId, CurrentUserId.Value, model.TestCaseId));
+
+            SetSuccess("Test case deleted.");
+        }
+        catch (DomainException ex)
+        {
+            SetError(ex.Message);
+        }
+
+        return RedirectToAction(nameof(Detail), new { assignmentId = model.AssignmentId });
+    }
+
+    [Authorize(Policy = "TeacherOrAdmin")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveRubric(UpsertAssignmentRubricViewModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            SetError("Invalid rubric payload.");
+            return RedirectToAction(nameof(Detail), new { assignmentId = model.AssignmentId });
+        }
+
+        if (CurrentUserId is null)
+        {
+            return Challenge();
+        }
+
+        try
+        {
+            var criteria = ParseRubricCriteria(model.CriteriaText);
+            await _updateAssignmentRubricUseCase.HandleAsync(
+                new UpdateAssignmentRubricRequestDto(model.AssignmentId, CurrentUserId.Value, criteria));
+
+            SetSuccess("Rubric updated.");
+        }
+        catch (DomainException ex)
+        {
+            SetError(ex.Message);
+        }
+        catch (FormatException ex)
+        {
+            SetError(ex.Message);
+        }
+
+        return RedirectToAction(nameof(Detail), new { assignmentId = model.AssignmentId });
     }
 
     [Authorize(Policy = "TeacherOrAdmin")]
@@ -274,5 +439,46 @@ public sealed class AssignmentController : AppControllerBase
         }
 
         return RedirectToAction(nameof(Index), new { classroomId = model.ClassroomId });
+    }
+
+    private static string BuildRubricCriteriaText(IReadOnlyList<RubricCriteriaDto> criteria)
+    {
+        if (criteria is null || criteria.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Join(Environment.NewLine, criteria.Select(x => $"{x.Name}|{x.Description}|{x.Weight}"));
+    }
+
+    private static IReadOnlyList<RubricCriteriaDto> ParseRubricCriteria(string raw)
+    {
+        var lines = (raw ?? string.Empty)
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var criteria = new List<RubricCriteriaDto>(lines.Length);
+        for (var index = 0; index < lines.Length; index++)
+        {
+            var line = lines[index];
+            var parts = line.Split('|', StringSplitOptions.TrimEntries);
+            if (parts.Length != 3)
+            {
+                throw new FormatException($"Rubric line {index + 1} must follow 'Name|Description|Weight'.");
+            }
+
+            if (!double.TryParse(parts[2], out var weight) || weight <= 0)
+            {
+                throw new FormatException($"Rubric line {index + 1} has invalid weight.");
+            }
+
+            criteria.Add(new RubricCriteriaDto(parts[0], parts[1], weight));
+        }
+
+        if (criteria.Count == 0)
+        {
+            throw new FormatException("Rubric must include at least one criteria line.");
+        }
+
+        return criteria;
     }
 }

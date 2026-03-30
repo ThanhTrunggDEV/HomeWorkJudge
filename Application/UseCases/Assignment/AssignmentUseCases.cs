@@ -213,11 +213,19 @@ public sealed class PublishAssignmentUseCase : IPublishAssignmentUseCase
 public sealed class AddAssignmentTestCaseUseCase : IAddAssignmentTestCaseUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public AddAssignmentTestCaseUseCase(IAssignmentRepository assignmentRepository, IUnitOfWork unitOfWork)
+    public AddAssignmentTestCaseUseCase(
+        IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork)
     {
         _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -227,6 +235,14 @@ public sealed class AddAssignmentTestCaseUseCase : IAddAssignmentTestCaseUseCase
 
         var assignment = await _assignmentRepository.GetByIdWithTestCasesAsync(new AssignmentId(request.AssignmentId))
             ?? throw new DomainException("Assignment not found.");
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId)
+            ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(request.RequestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanManageClassroom(requester, classroom);
 
         var testCase = new TestCase(
             new TestCaseId(Guid.NewGuid()),
@@ -253,11 +269,19 @@ public sealed class AddAssignmentTestCaseUseCase : IAddAssignmentTestCaseUseCase
 public sealed class UpdateAssignmentTestCaseUseCase : IUpdateAssignmentTestCaseUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateAssignmentTestCaseUseCase(IAssignmentRepository assignmentRepository, IUnitOfWork unitOfWork)
+    public UpdateAssignmentTestCaseUseCase(
+        IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork)
     {
         _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -267,6 +291,14 @@ public sealed class UpdateAssignmentTestCaseUseCase : IUpdateAssignmentTestCaseU
 
         var assignment = await _assignmentRepository.GetByIdWithTestCasesAsync(new AssignmentId(request.AssignmentId))
             ?? throw new DomainException("Assignment not found.");
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId)
+            ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(request.RequestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanManageClassroom(requester, classroom);
 
         var testCaseId = new TestCaseId(request.TestCaseId);
         assignment.UpdateTestCase(testCaseId, request.InputData, request.ExpectedOutput, request.IsHidden, request.ScoreWeight);
@@ -288,11 +320,19 @@ public sealed class UpdateAssignmentTestCaseUseCase : IUpdateAssignmentTestCaseU
 public sealed class DeleteAssignmentTestCaseUseCase : IDeleteAssignmentTestCaseUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteAssignmentTestCaseUseCase(IAssignmentRepository assignmentRepository, IUnitOfWork unitOfWork)
+    public DeleteAssignmentTestCaseUseCase(
+        IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork)
     {
         _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -302,6 +342,14 @@ public sealed class DeleteAssignmentTestCaseUseCase : IDeleteAssignmentTestCaseU
 
         var assignment = await _assignmentRepository.GetByIdWithTestCasesAsync(new AssignmentId(request.AssignmentId))
             ?? throw new DomainException("Assignment not found.");
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId)
+            ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(request.RequestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanManageClassroom(requester, classroom);
 
         assignment.RemoveTestCase(new TestCaseId(request.TestCaseId));
 
@@ -313,11 +361,19 @@ public sealed class DeleteAssignmentTestCaseUseCase : IDeleteAssignmentTestCaseU
 public sealed class CreateAssignmentRubricUseCase : ICreateAssignmentRubricUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateAssignmentRubricUseCase(IAssignmentRepository assignmentRepository, IUnitOfWork unitOfWork)
+    public CreateAssignmentRubricUseCase(
+        IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork)
     {
         _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -327,6 +383,14 @@ public sealed class CreateAssignmentRubricUseCase : ICreateAssignmentRubricUseCa
 
         var assignment = await _assignmentRepository.GetByIdWithTestCasesAsync(new AssignmentId(request.AssignmentId))
             ?? throw new DomainException("Assignment not found.");
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId)
+            ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(request.RequestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanManageClassroom(requester, classroom);
 
         var rubric = new Rubric(new RubricId(Guid.NewGuid()), assignment.Id, AssignmentUseCaseHelpers.SerializeCriteria(request.Criteria));
         assignment.SetRubric(rubric);
@@ -339,11 +403,19 @@ public sealed class CreateAssignmentRubricUseCase : ICreateAssignmentRubricUseCa
 public sealed class UpdateAssignmentRubricUseCase : IUpdateAssignmentRubricUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateAssignmentRubricUseCase(IAssignmentRepository assignmentRepository, IUnitOfWork unitOfWork)
+    public UpdateAssignmentRubricUseCase(
+        IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork)
     {
         _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -353,6 +425,14 @@ public sealed class UpdateAssignmentRubricUseCase : IUpdateAssignmentRubricUseCa
 
         var assignment = await _assignmentRepository.GetByIdWithTestCasesAsync(new AssignmentId(request.AssignmentId))
             ?? throw new DomainException("Assignment not found.");
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId)
+            ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(request.RequestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanManageClassroom(requester, classroom);
 
         var rubric = assignment.Rubric ?? new Rubric(new RubricId(Guid.NewGuid()), assignment.Id, "[]");
         rubric.UpdateCriteria(AssignmentUseCaseHelpers.SerializeCriteria(request.Criteria));
@@ -381,7 +461,7 @@ public sealed class RejudgeAssignmentUseCase : IRejudgeAssignmentUseCase
 
     public async Task HandleAsync(Guid assignmentId, CancellationToken cancellationToken = default)
     {
-        var assignment = await _assignmentRepository.GetByIdAsync(new AssignmentId(assignmentId))
+        var assignment = await _assignmentRepository.GetByIdWithTestCasesAsync(new AssignmentId(assignmentId))
             ?? throw new DomainException("Assignment not found.");
 
         var submissions = await _submissionRepository.GetByAssignmentIdAsync(assignment.Id);
@@ -453,7 +533,27 @@ public sealed class GetAssignmentDetailUseCase : IGetAssignmentDetailUseCase
             EnumMapper.ToDto(assignment.GradingType),
             assignment.TimeLimitMs,
             assignment.MemoryLimitKb,
-            assignment.MaxSubmissions);
+            assignment.MaxSubmissions,
+            assignment.TestCases
+                .Select(testCase => new AssignmentTestCaseDto(
+                    testCase.Id.Value,
+                    testCase.InputData,
+                    testCase.ExpectedOutput,
+                    testCase.IsHidden,
+                    testCase.ScoreWeight))
+                .ToList(),
+            DeserializeCriteria(assignment.Rubric?.CriteriaListJson));
+    }
+
+    private static IReadOnlyList<RubricCriteriaDto> DeserializeCriteria(string? criteriaListJson)
+    {
+        if (string.IsNullOrWhiteSpace(criteriaListJson))
+        {
+            return Array.Empty<RubricCriteriaDto>();
+        }
+
+        return JsonSerializer.Deserialize<IReadOnlyList<RubricCriteriaDto>>(criteriaListJson)
+            ?? Array.Empty<RubricCriteriaDto>();
     }
 }
 

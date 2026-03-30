@@ -35,4 +35,21 @@ public sealed class GradingPanelViewModel
     public double NewTotalScore { get; set; }
 
     public string OverrideReason { get; set; } = string.Empty;
+
+    public bool IsApproved { get; set; } = true;
+
+    [StringLength(2000)]
+    public string TeacherComment { get; set; } = string.Empty;
+
+    [StringLength(180)]
+    public string CriteriaName { get; set; } = string.Empty;
+
+    [Range(0, 1000)]
+    public double NewCriteriaScore { get; set; }
+
+    [StringLength(2000)]
+    public string CriteriaOverrideReason { get; set; } = string.Empty;
+
+    [StringLength(500)]
+    public string StudentQuestion { get; set; } = string.Empty;
 }

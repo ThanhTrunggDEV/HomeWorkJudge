@@ -41,6 +41,7 @@ public sealed record AssignmentTestCaseDto(
 
 public sealed record AddAssignmentTestCaseRequestDto(
     Guid AssignmentId,
+    Guid RequestedByUserId,
     string InputData,
     string ExpectedOutput,
     bool IsHidden,
@@ -48,20 +49,23 @@ public sealed record AddAssignmentTestCaseRequestDto(
 
 public sealed record UpdateAssignmentTestCaseRequestDto(
     Guid AssignmentId,
+    Guid RequestedByUserId,
     Guid TestCaseId,
     string InputData,
     string ExpectedOutput,
     bool IsHidden,
     double ScoreWeight);
 
-public sealed record DeleteAssignmentTestCaseRequestDto(Guid AssignmentId, Guid TestCaseId);
+public sealed record DeleteAssignmentTestCaseRequestDto(Guid AssignmentId, Guid RequestedByUserId, Guid TestCaseId);
 
 public sealed record CreateAssignmentRubricRequestDto(
     Guid AssignmentId,
+    Guid RequestedByUserId,
     IReadOnlyList<RubricCriteriaDto> Criteria);
 
 public sealed record UpdateAssignmentRubricRequestDto(
     Guid AssignmentId,
+    Guid RequestedByUserId,
     IReadOnlyList<RubricCriteriaDto> Criteria);
 
 public sealed record AssignmentListItemDto(
@@ -83,4 +87,6 @@ public sealed record AssignmentDetailDto(
     AssignmentGradingTypeDto GradingType,
     long TimeLimitMs,
     long MemoryLimitKb,
-    int MaxSubmissions);
+    int MaxSubmissions,
+    IReadOnlyList<AssignmentTestCaseDto> TestCases,
+    IReadOnlyList<RubricCriteriaDto> RubricCriteria);

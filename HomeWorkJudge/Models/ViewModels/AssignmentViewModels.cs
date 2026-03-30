@@ -23,6 +23,10 @@ public sealed class AssignmentListPageViewModel
 public sealed class AssignmentDetailPageViewModel
 {
     public Ports.DTO.Assignment.AssignmentDetailDto? Assignment { get; set; }
+
+    public AddAssignmentTestCaseViewModel AddTestCaseForm { get; set; } = new();
+
+    public UpsertAssignmentRubricViewModel RubricForm { get; set; } = new();
 }
 
 public sealed class CreateAssignmentViewModel
@@ -96,4 +100,64 @@ public sealed class EditAssignmentViewModel
 
     [Range(1, int.MaxValue)]
     public int MaxSubmissions { get; set; }
+}
+
+public sealed class AddAssignmentTestCaseViewModel
+{
+    [NotEmptyGuid]
+    public Guid AssignmentId { get; set; }
+
+    [Required]
+    [StringLength(4000)]
+    public string InputData { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(4000)]
+    public string ExpectedOutput { get; set; } = string.Empty;
+
+    public bool IsHidden { get; set; }
+
+    [Range(0.0001, 1000)]
+    public double ScoreWeight { get; set; } = 1;
+}
+
+public sealed class UpdateAssignmentTestCaseViewModel
+{
+    [NotEmptyGuid]
+    public Guid AssignmentId { get; set; }
+
+    [NotEmptyGuid]
+    public Guid TestCaseId { get; set; }
+
+    [Required]
+    [StringLength(4000)]
+    public string InputData { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(4000)]
+    public string ExpectedOutput { get; set; } = string.Empty;
+
+    public bool IsHidden { get; set; }
+
+    [Range(0.0001, 1000)]
+    public double ScoreWeight { get; set; } = 1;
+}
+
+public sealed class DeleteAssignmentTestCaseViewModel
+{
+    [NotEmptyGuid]
+    public Guid AssignmentId { get; set; }
+
+    [NotEmptyGuid]
+    public Guid TestCaseId { get; set; }
+}
+
+public sealed class UpsertAssignmentRubricViewModel
+{
+    [NotEmptyGuid]
+    public Guid AssignmentId { get; set; }
+
+    [Required]
+    [StringLength(16000)]
+    public string CriteriaText { get; set; } = string.Empty;
 }
