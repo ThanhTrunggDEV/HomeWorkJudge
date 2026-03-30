@@ -25,6 +25,8 @@ public sealed class RegisterUserUseCase : IRegisterUserUseCase
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var normalizedEmail = EmailNormalizer.Normalize(request.Email);
+
         if (string.IsNullOrWhiteSpace(request.Password))
         {
             throw new DomainException("Password is required.");
@@ -35,7 +37,7 @@ public sealed class RegisterUserUseCase : IRegisterUserUseCase
             throw new DomainException("Password must be at least 8 characters.");
         }
 
-        var existing = await _userRepository.GetByEmailAsync(request.Email);
+        var existing = await _userRepository.GetByEmailAsync(normalizedEmail);
         if (existing is not null)
         {
             throw new DomainException("Email already exists.");
@@ -45,7 +47,7 @@ public sealed class RegisterUserUseCase : IRegisterUserUseCase
 
         var user = new Domain.Entity.User(
             new UserId(Guid.NewGuid()),
-            request.Email.Trim(),
+            normalizedEmail,
             request.FullName.Trim(),
             UserRole.Student,
             passwordHash);
@@ -70,12 +72,14 @@ public sealed class LoginUseCase : ILoginUseCase
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var normalizedEmail = EmailNormalizer.Normalize(request.Email);
+
         if (string.IsNullOrWhiteSpace(request.Password))
         {
             throw new DomainException("Password is required.");
         }
 
-        var user = await _userRepository.GetByEmailAsync(request.Email);
+        var user = await _userRepository.GetByEmailAsync(normalizedEmail);
         if (user is null)
         {
             throw new DomainException("Invalid credentials.");

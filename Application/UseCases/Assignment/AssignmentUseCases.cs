@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Application.Common;
+using Application.DomainEvents;
 using Domain.Entity;
 using Domain.Exception;
 using Domain.Ports;
@@ -125,11 +126,16 @@ public sealed class PublishAssignmentUseCase : IPublishAssignmentUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly DomainEventDispatcher _domainEventDispatcher;
 
-    public PublishAssignmentUseCase(IAssignmentRepository assignmentRepository, IUnitOfWork unitOfWork)
+    public PublishAssignmentUseCase(
+        IAssignmentRepository assignmentRepository,
+        IUnitOfWork unitOfWork,
+        DomainEventDispatcher domainEventDispatcher)
     {
         _assignmentRepository = assignmentRepository;
         _unitOfWork = unitOfWork;
+        _domainEventDispatcher = domainEventDispatcher;
     }
 
     public async Task HandleAsync(PublishAssignmentRequestDto request, CancellationToken cancellationToken = default)
@@ -140,8 +146,13 @@ public sealed class PublishAssignmentUseCase : IPublishAssignmentUseCase
             ?? throw new DomainException("Assignment not found.");
 
         assignment.Publish();
+        var events = DomainEventUtilities.SnapshotEvents(assignment);
+
         await _assignmentRepository.UpdateAsync(assignment);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        await _domainEventDispatcher.DispatchAsync(events, cancellationToken);
+        DomainEventUtilities.ClearEvents(assignment);
     }
 }
 

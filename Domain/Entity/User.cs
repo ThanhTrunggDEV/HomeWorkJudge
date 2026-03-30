@@ -18,7 +18,7 @@ public class User : EntityBase
         if (string.IsNullOrWhiteSpace(passwordHash)) throw new ArgumentException("PasswordHash cannot be empty or whitespace.");
         
         Id = id;
-        Email = email;
+        Email = email.Trim().ToLowerInvariant();
         FullName = fullName;
         Role = role;
         PasswordHash = passwordHash;

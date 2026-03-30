@@ -31,7 +31,7 @@ public sealed class SqliteUserRepository : IUserRepository
             return null;
         }
 
-        var normalizedEmail = email.Trim();
+        var normalizedEmail = email.Trim().ToLowerInvariant();
         var record = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Email == normalizedEmail);
