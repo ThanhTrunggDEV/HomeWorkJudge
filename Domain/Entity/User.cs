@@ -9,16 +9,19 @@ public class User : EntityBase
     public string Email { get; private set; }
     public string FullName { get; private set; }
     public UserRole Role { get; private set; }
+    public string PasswordHash { get; private set; }
 
-    public User(UserId id, string email, string fullName, UserRole role)
+    public User(UserId id, string email, string fullName, UserRole role, string passwordHash)
     {
         if (string.IsNullOrWhiteSpace(email)) throw new ArgumentException("Email cannot be empty or whitespace.");
         if (string.IsNullOrWhiteSpace(fullName)) throw new ArgumentException("FullName cannot be empty or whitespace.");
+        if (string.IsNullOrWhiteSpace(passwordHash)) throw new ArgumentException("PasswordHash cannot be empty or whitespace.");
         
         Id = id;
         Email = email;
         FullName = fullName;
         Role = role;
+        PasswordHash = passwordHash;
     }
 
     public void UpdateProfile(string fullName)
@@ -30,5 +33,11 @@ public class User : EntityBase
     public void ChangeRole(UserRole role)
     {
         Role = role;
+    }
+
+    public void UpdatePasswordHash(string passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash)) throw new ArgumentException("PasswordHash cannot be empty or whitespace.");
+        PasswordHash = passwordHash;
     }
 }

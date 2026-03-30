@@ -51,12 +51,13 @@ internal static class SqliteEntityMapper
         Id = user.Id.Value,
         Email = user.Email,
         FullName = user.FullName,
-        Role = (int)user.Role
+        Role = (int)user.Role,
+        PasswordHash = user.PasswordHash
     };
 
     public static User ToDomain(UserRecord record)
     {
-        var user = new User(new UserId(record.Id), record.Email, record.FullName, (UserRole)record.Role);
+        var user = new User(new UserId(record.Id), record.Email, record.FullName, (UserRole)record.Role, record.PasswordHash);
         user.ClearDomainEvents();
         return user;
     }

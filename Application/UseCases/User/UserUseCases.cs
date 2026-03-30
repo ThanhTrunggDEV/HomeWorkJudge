@@ -2,7 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Application.Common;
-using Domain.Entity;
 using Domain.Exception;
 using Domain.Ports;
 using Domain.ValueObject;
@@ -26,17 +25,30 @@ public sealed class RegisterUserUseCase : IRegisterUserUseCase
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (string.IsNullOrWhiteSpace(request.Password))
+        {
+            throw new DomainException("Password is required.");
+        }
+
+        if (request.Password.Length < 8)
+        {
+            throw new DomainException("Password must be at least 8 characters.");
+        }
+
         var existing = await _userRepository.GetByEmailAsync(request.Email);
         if (existing is not null)
         {
             throw new DomainException("Email already exists.");
         }
 
+        var passwordHash = PasswordHasher.Hash(request.Password);
+
         var user = new Domain.Entity.User(
             new UserId(Guid.NewGuid()),
             request.Email.Trim(),
             request.FullName.Trim(),
-            EnumMapper.ToDomain(request.Role));
+            UserRole.Student,
+            passwordHash);
 
         await _userRepository.AddAsync(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -69,8 +81,13 @@ public sealed class LoginUseCase : ILoginUseCase
             throw new DomainException("Invalid credentials.");
         }
 
+        if (!PasswordHasher.Verify(request.Password, user.PasswordHash))
+        {
+            throw new DomainException("Invalid credentials.");
+        }
+
         var expiresAt = DateTime.UtcNow.AddHours(8);
-        var token = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+        var token = SecureTokenGenerator.Generate();
 
         return new LoginResponseDto(user.Id.Value, token, expiresAt);
     }
