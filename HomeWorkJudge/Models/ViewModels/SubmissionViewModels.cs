@@ -1,12 +1,13 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using HomeWorkJudge.Validation;
 using Ports.DTO.Submission;
 
 namespace HomeWorkJudge.Models.ViewModels;
 
 public sealed class SubmitCodeViewModel
 {
-    [Required]
+    [NotEmptyGuid]
     public Guid AssignmentId { get; set; }
 
     [Required]
@@ -27,7 +28,7 @@ public sealed class SubmissionDetailPageViewModel
 
 public sealed class GradingPanelViewModel
 {
-    [Required]
+    [NotEmptyGuid]
     public Guid SubmissionId { get; set; }
 
     [Range(0, 1000)]

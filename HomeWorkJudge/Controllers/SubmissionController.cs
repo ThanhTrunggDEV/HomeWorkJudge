@@ -51,7 +51,11 @@ public sealed class SubmissionController : AppControllerBase
         try
         {
             var response = await _submitCodeUseCase.HandleAsync(
-                new SubmitCodeRequestDto(model.AssignmentId, CurrentUserId.Value, model.SourceCode, model.Language));
+                new SubmitCodeRequestDto(
+                    model.AssignmentId,
+                    CurrentUserId.Value,
+                    model.SourceCode,
+                    model.Language.Trim()));
 
             SetSuccess($"Submission created with id {response.SubmissionId}.");
             return RedirectToAction(nameof(Detail), new { submissionId = response.SubmissionId });
@@ -93,6 +97,9 @@ public sealed class SubmissionController : AppControllerBase
     [HttpGet]
     public async Task<IActionResult> History(int pageNumber = 1, int pageSize = 20)
     {
+        var normalizedPageNumber = pageNumber < 1 ? 1 : pageNumber;
+        var normalizedPageSize = pageSize < 1 ? 20 : Math.Min(pageSize, 100);
+
         if (CurrentUserId is null)
         {
             return Challenge();
@@ -100,7 +107,7 @@ public sealed class SubmissionController : AppControllerBase
 
         var page = await _getSubmissionHistoryUseCase.HandleAsync(
             CurrentUserId.Value,
-            new PagedRequestDto(pageNumber, pageSize));
+            new PagedRequestDto(normalizedPageNumber, normalizedPageSize));
 
         return View(new SubmissionHistoryViewModel
         {

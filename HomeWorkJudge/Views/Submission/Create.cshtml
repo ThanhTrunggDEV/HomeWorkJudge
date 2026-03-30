@@ -7,11 +7,12 @@
 
 <form asp-action="Create" method="post" class="row g-3">
     @Html.AntiForgeryToken()
+    <input asp-for="AssignmentId" type="hidden" />
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
     <div class="col-md-6">
-        <label asp-for="AssignmentId" class="form-label"></label>
-        <input asp-for="AssignmentId" class="form-control" />
+        <label class="form-label">AssignmentId</label>
+        <input value="@Model.AssignmentId" class="form-control" readonly />
         <span asp-validation-for="AssignmentId" class="text-danger"></span>
     </div>
 

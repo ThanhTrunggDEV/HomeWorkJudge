@@ -37,6 +37,9 @@ public sealed class AssignmentController : AppControllerBase
             return View(new AssignmentListPageViewModel());
         }
 
+        var normalizedPageNumber = pageNumber < 1 ? 1 : pageNumber;
+        var normalizedPageSize = pageSize < 1 ? 20 : Math.Min(pageSize, 100);
+
         if (CurrentUserId is null)
         {
             return Challenge();
@@ -47,7 +50,7 @@ public sealed class AssignmentController : AppControllerBase
             var response = await _listAssignmentsUseCase.HandleAsync(
                 classroomId,
                 CurrentUserId.Value,
-                new PagedRequestDto(pageNumber, pageSize));
+                new PagedRequestDto(normalizedPageNumber, normalizedPageSize));
 
             return View(new AssignmentListPageViewModel
             {
@@ -61,7 +64,12 @@ public sealed class AssignmentController : AppControllerBase
         catch (DomainException ex)
         {
             SetError(ex.Message);
-            return View(new AssignmentListPageViewModel { ClassroomId = classroomId });
+            return View(new AssignmentListPageViewModel
+            {
+                ClassroomId = classroomId,
+                PageNumber = normalizedPageNumber,
+                PageSize = normalizedPageSize
+            });
         }
     }
 
@@ -69,6 +77,11 @@ public sealed class AssignmentController : AppControllerBase
     [HttpGet]
     public IActionResult Create(Guid classroomId)
     {
+        if (classroomId == Guid.Empty)
+        {
+            return BadRequest("ClassroomId is required.");
+        }
+
         return View(new CreateAssignmentViewModel
         {
             ClassroomId = classroomId,
@@ -101,8 +114,8 @@ public sealed class AssignmentController : AppControllerBase
                 new CreateAssignmentRequestDto(
                     model.ClassroomId,
                     CurrentUserId.Value,
-                    model.Title,
-                    model.Description,
+                    model.Title.Trim(),
+                    model.Description.Trim(),
                     languages,
                     model.DueDate,
                     model.GradingType,

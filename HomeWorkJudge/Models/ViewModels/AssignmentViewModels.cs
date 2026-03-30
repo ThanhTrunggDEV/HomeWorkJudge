@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using HomeWorkJudge.Validation;
 using Ports.DTO.Assignment;
 using Ports.DTO.Common;
 
@@ -21,7 +22,7 @@ public sealed class AssignmentListPageViewModel
 
 public sealed class CreateAssignmentViewModel
 {
-    [Required]
+    [NotEmptyGuid]
     public Guid ClassroomId { get; set; }
 
     [Required]
@@ -53,9 +54,9 @@ public sealed class CreateAssignmentViewModel
 
 public sealed class PublishAssignmentViewModel
 {
-    [Required]
+    [NotEmptyGuid]
     public Guid AssignmentId { get; set; }
 
-    [Required]
+    [NotEmptyGuid]
     public Guid ClassroomId { get; set; }
 }

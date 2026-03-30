@@ -36,11 +36,11 @@ public sealed class ClassroomController : AppControllerBase
     [Authorize(Policy = "TeacherOrAdmin")]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(ClassroomIndexViewModel model)
+    public async Task<IActionResult> Create([Bind(Prefix = "CreateForm")] CreateClassroomViewModel model)
     {
         if (!ModelState.IsValid)
         {
-            return View("Index", model);
+            return View("Index", new ClassroomIndexViewModel { CreateForm = model });
         }
 
         if (CurrentUserId is null)
@@ -51,7 +51,7 @@ public sealed class ClassroomController : AppControllerBase
         try
         {
             var response = await _createClassroomUseCase.HandleAsync(
-                new CreateClassroomRequestDto(model.CreateForm.Name, CurrentUserId.Value));
+                new CreateClassroomRequestDto(model.Name.Trim(), CurrentUserId.Value));
 
             SetSuccess($"Created classroom successfully. Join code: {response.JoinCode}");
             return RedirectToAction(nameof(Index), new { classroomId = response.ClassroomId, joinCode = response.JoinCode });
@@ -59,18 +59,18 @@ public sealed class ClassroomController : AppControllerBase
         catch (DomainException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            return View("Index", model);
+            return View("Index", new ClassroomIndexViewModel { CreateForm = model });
         }
     }
 
     [Authorize(Roles = "Student")]
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Join(ClassroomIndexViewModel model)
+    public async Task<IActionResult> Join([Bind(Prefix = "JoinForm")] JoinClassroomViewModel model)
     {
         if (!ModelState.IsValid)
         {
-            return View("Index", model);
+            return View("Index", new ClassroomIndexViewModel { JoinForm = model });
         }
 
         if (CurrentUserId is null)
@@ -81,15 +81,15 @@ public sealed class ClassroomController : AppControllerBase
         try
         {
             var response = await _joinClassroomUseCase.HandleAsync(
-                new JoinClassroomRequestDto(model.JoinForm.JoinCode, CurrentUserId.Value));
+                new JoinClassroomRequestDto(model.JoinCode.Trim(), CurrentUserId.Value));
 
             SetSuccess($"Joined classroom successfully. ClassroomId: {response.ClassroomId}");
-            return RedirectToAction(nameof(Index), new { classroomId = response.ClassroomId, joinCode = model.JoinForm.JoinCode });
+            return RedirectToAction(nameof(Index), new { classroomId = response.ClassroomId, joinCode = model.JoinCode.Trim() });
         }
         catch (DomainException ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            return View("Index", model);
+            return View("Index", new ClassroomIndexViewModel { JoinForm = model });
         }
     }
 }
