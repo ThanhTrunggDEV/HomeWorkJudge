@@ -33,3 +33,10 @@ public enum UserRoleDto
     Teacher = 2,
     Admin = 3
 }
+
+public enum ResourceAccessDecisionDto
+{
+    Allowed = 1,
+    Forbidden = 2,
+    NotFound = 3
+}

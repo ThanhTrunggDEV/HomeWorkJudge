@@ -15,6 +15,15 @@ public interface IGetSubmissionDetailUseCase
         CancellationToken cancellationToken = default);
 }
 
+public interface IGetAuthorizedSubmissionDetailUseCase
+{
+    Task<AuthorizedSubmissionDetailResponseDto> HandleAsync(
+        Guid submissionId,
+        Guid actorUserId,
+        UserRoleDto actorRole,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IGetScoreboardUseCase
 {
     Task<IReadOnlyList<ScoreboardItemDto>> HandleAsync(
@@ -27,5 +36,14 @@ public interface IGetSubmissionHistoryUseCase
     Task<PagedResponseDto<SubmissionDetailDto>> HandleAsync(
         Guid studentId,
         PagedRequestDto request,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ICheckClassroomAccessUseCase
+{
+    Task<ResourceAccessDecisionDto> HandleAsync(
+        Guid classroomId,
+        Guid actorUserId,
+        UserRoleDto actorRole,
         CancellationToken cancellationToken = default);
 }

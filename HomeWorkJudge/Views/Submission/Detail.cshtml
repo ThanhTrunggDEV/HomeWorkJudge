@@ -1,0 +1,100 @@
+@model SubmissionDetailPageViewModel
+@{
+    ViewData["Title"] = "Submission Detail";
+}
+
+<h2>Submission Detail</h2>
+
+@if (Model.Submission is null)
+{
+    <div class="alert alert-warning">Submission not found for id <strong>@Model.SubmissionId</strong>.</div>
+}
+else
+{
+    @if (User.IsInRole("Teacher") || User.IsInRole("Admin"))
+    {
+        <div class="mb-3">
+            <a asp-controller="Grading" asp-action="Index" asp-route-submissionId="@Model.Submission.SubmissionId" class="btn btn-outline-warning">Open Grading Panel</a>
+        </div>
+    }
+
+    <dl class="row">
+        <dt class="col-sm-3">Submission ID</dt>
+        <dd class="col-sm-9">@Model.Submission.SubmissionId</dd>
+
+        <dt class="col-sm-3">Assignment ID</dt>
+        <dd class="col-sm-9">@Model.Submission.AssignmentId</dd>
+
+        <dt class="col-sm-3">Student ID</dt>
+        <dd class="col-sm-9">@Model.Submission.StudentId</dd>
+
+        <dt class="col-sm-3">Status</dt>
+        <dd class="col-sm-9">@Model.Submission.Status</dd>
+
+        <dt class="col-sm-3">Total Score</dt>
+        <dd class="col-sm-9">@Model.Submission.TotalScore</dd>
+
+        <dt class="col-sm-3">Submitted At</dt>
+        <dd class="col-sm-9">@Model.Submission.SubmittedAt.ToString("u")</dd>
+    </dl>
+
+    <h4>Test Case Results</h4>
+    @if (Model.Submission.TestCaseResults.Count == 0)
+    {
+        <p class="text-muted">No test case results.</p>
+    }
+    else
+    {
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>TestCase ID</th>
+                    <th>Status</th>
+                    <th>Actual Output</th>
+                    <th>Time (ms)</th>
+                    <th>Memory (KB)</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Submission.TestCaseResults)
+            {
+                <tr>
+                    <td>@row.TestCaseId</td>
+                    <td>@row.Status</td>
+                    <td class="font-monospace">@row.ActualOutput</td>
+                    <td>@row.ExecutionTimeMs</td>
+                    <td>@row.MemoryUsedKb</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+
+    <h4>Rubric Results</h4>
+    @if (Model.Submission.RubricResults.Count == 0)
+    {
+        <p class="text-muted">No rubric results.</p>
+    }
+    else
+    {
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Criteria</th>
+                    <th>Score</th>
+                    <th>Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Submission.RubricResults)
+            {
+                <tr>
+                    <td>@row.CriteriaName</td>
+                    <td>@row.GivenScore</td>
+                    <td>@row.CommentReason</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+}

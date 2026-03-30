@@ -54,3 +54,6 @@ appsettings.Local.json
 **/appsettings.*.local.json
 **/appsettings.*.secrets.json
 **/appsettings.Secrets.json
+
+# Local SQLite artifacts
+HomeWorkJudge/*.db

@@ -29,6 +29,81 @@ public sealed class GetSubmissionDetailUseCase : IGetSubmissionDetailUseCase
     }
 }
 
+public sealed class GetAuthorizedSubmissionDetailUseCase : IGetAuthorizedSubmissionDetailUseCase
+{
+    private readonly ISubmissionRepository _submissionRepository;
+    private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+
+    public GetAuthorizedSubmissionDetailUseCase(
+        ISubmissionRepository submissionRepository,
+        IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository)
+    {
+        _submissionRepository = submissionRepository;
+        _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+    }
+
+    public async Task<AuthorizedSubmissionDetailResponseDto> HandleAsync(
+        Guid submissionId,
+        Guid actorUserId,
+        UserRoleDto actorRole,
+        CancellationToken cancellationToken = default)
+    {
+        var submission = await _submissionRepository.GetByIdAsync(new SubmissionId(submissionId));
+        if (submission is null)
+        {
+            return new AuthorizedSubmissionDetailResponseDto(ResourceAccessDecisionDto.NotFound, null);
+        }
+
+        if (actorRole == UserRoleDto.Admin)
+        {
+            return new AuthorizedSubmissionDetailResponseDto(
+                ResourceAccessDecisionDto.Allowed,
+                QueryUseCaseMapper.ToSubmissionDetailDto(submission));
+        }
+
+        if (actorRole == UserRoleDto.Student)
+        {
+            if (submission.StudentId.Value != actorUserId)
+            {
+                return new AuthorizedSubmissionDetailResponseDto(ResourceAccessDecisionDto.Forbidden, null);
+            }
+
+            return new AuthorizedSubmissionDetailResponseDto(
+                ResourceAccessDecisionDto.Allowed,
+                QueryUseCaseMapper.ToSubmissionDetailDto(submission));
+        }
+
+        if (actorRole != UserRoleDto.Teacher)
+        {
+            return new AuthorizedSubmissionDetailResponseDto(ResourceAccessDecisionDto.Forbidden, null);
+        }
+
+        var assignment = await _assignmentRepository.GetByIdAsync(submission.AssignmentId);
+        if (assignment is null)
+        {
+            return new AuthorizedSubmissionDetailResponseDto(ResourceAccessDecisionDto.NotFound, null);
+        }
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId);
+        if (classroom is null)
+        {
+            return new AuthorizedSubmissionDetailResponseDto(ResourceAccessDecisionDto.NotFound, null);
+        }
+
+        if (classroom.TeacherId.Value != actorUserId)
+        {
+            return new AuthorizedSubmissionDetailResponseDto(ResourceAccessDecisionDto.Forbidden, null);
+        }
+
+        return new AuthorizedSubmissionDetailResponseDto(
+            ResourceAccessDecisionDto.Allowed,
+            QueryUseCaseMapper.ToSubmissionDetailDto(submission));
+    }
+}
+
 public sealed class GetScoreboardUseCase : IGetScoreboardUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
@@ -112,6 +187,41 @@ public sealed class GetSubmissionHistoryUseCase : IGetSubmissionHistoryUseCase
             .ToList();
 
         return new PagedResponseDto<SubmissionDetailDto>(items, pageNumber, pageSize, submissions.Count);
+    }
+}
+
+public sealed class CheckClassroomAccessUseCase : ICheckClassroomAccessUseCase
+{
+    private readonly IClassroomRepository _classroomRepository;
+
+    public CheckClassroomAccessUseCase(IClassroomRepository classroomRepository)
+    {
+        _classroomRepository = classroomRepository;
+    }
+
+    public async Task<ResourceAccessDecisionDto> HandleAsync(
+        Guid classroomId,
+        Guid actorUserId,
+        UserRoleDto actorRole,
+        CancellationToken cancellationToken = default)
+    {
+        var classroom = await _classroomRepository.GetByIdAsync(new ClassroomId(classroomId));
+        if (classroom is null)
+        {
+            return ResourceAccessDecisionDto.NotFound;
+        }
+
+        if (actorRole == UserRoleDto.Admin)
+        {
+            return ResourceAccessDecisionDto.Allowed;
+        }
+
+        if (actorRole == UserRoleDto.Teacher && classroom.TeacherId.Value == actorUserId)
+        {
+            return ResourceAccessDecisionDto.Allowed;
+        }
+
+        return ResourceAccessDecisionDto.Forbidden;
     }
 }
 

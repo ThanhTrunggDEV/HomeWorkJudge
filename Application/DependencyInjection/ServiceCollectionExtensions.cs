@@ -51,8 +51,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExplainRubricDeductionUseCase, ExplainRubricDeductionUseCase>();
 
         services.AddScoped<IGetSubmissionDetailUseCase, GetSubmissionDetailUseCase>();
+        services.AddScoped<IGetAuthorizedSubmissionDetailUseCase, GetAuthorizedSubmissionDetailUseCase>();
         services.AddScoped<IGetScoreboardUseCase, GetScoreboardUseCase>();
         services.AddScoped<IGetSubmissionHistoryUseCase, GetSubmissionHistoryUseCase>();
+        services.AddScoped<ICheckClassroomAccessUseCase, CheckClassroomAccessUseCase>();
 
         services.AddScoped<IExportScoreReportUseCase, ExportScoreReportUseCase>();
 

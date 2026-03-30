@@ -35,6 +35,10 @@ public sealed record SubmissionDetailDto(
     IReadOnlyList<RubricScoreDto> RubricResults,
     AiFeedbackDto? Feedback);
 
+public sealed record AuthorizedSubmissionDetailResponseDto(
+    ResourceAccessDecisionDto AccessDecision,
+    SubmissionDetailDto? Submission);
+
 public sealed record CodeCompilationResultDto(
     bool Success,
     string CompilerOutput,

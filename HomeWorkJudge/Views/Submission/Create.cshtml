@@ -1,0 +1,37 @@
+@model SubmitCodeViewModel
+@{
+    ViewData["Title"] = "Submit Code";
+}
+
+<h2>Submit Code</h2>
+
+<form asp-action="Create" method="post" class="row g-3">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="col-md-6">
+        <label asp-for="AssignmentId" class="form-label"></label>
+        <input asp-for="AssignmentId" class="form-control" />
+        <span asp-validation-for="AssignmentId" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Language" class="form-label"></label>
+        <input asp-for="Language" class="form-control" />
+        <span asp-validation-for="Language" class="text-danger"></span>
+    </div>
+
+    <div class="col-12">
+        <label asp-for="SourceCode" class="form-label"></label>
+        <textarea asp-for="SourceCode" rows="14" class="form-control font-monospace"></textarea>
+        <span asp-validation-for="SourceCode" class="text-danger"></span>
+    </div>
+
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

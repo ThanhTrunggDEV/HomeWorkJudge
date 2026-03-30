@@ -1,0 +1,41 @@
+@model SubmissionHistoryViewModel
+@{
+    ViewData["Title"] = "Submission History";
+}
+
+<h2>Submission History</h2>
+
+@if (Model.Page is null || Model.Page.Items.Count == 0)
+{
+    <p class="text-muted">No submissions available.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Submission ID</th>
+                <th>Assignment ID</th>
+                <th>Status</th>
+                <th>Total Score</th>
+                <th>Submitted At</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in Model.Page.Items)
+        {
+            <tr>
+                <td>@item.SubmissionId</td>
+                <td>@item.AssignmentId</td>
+                <td>@item.Status</td>
+                <td>@item.TotalScore</td>
+                <td>@item.SubmittedAt.ToString("u")</td>
+                <td>
+                    <a asp-action="Detail" asp-route-submissionId="@item.SubmissionId" class="btn btn-sm btn-outline-primary">Detail</a>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
