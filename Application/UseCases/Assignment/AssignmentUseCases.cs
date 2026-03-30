@@ -22,15 +22,18 @@ public sealed class CreateAssignmentUseCase : ICreateAssignmentUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
     private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateAssignmentUseCase(
         IAssignmentRepository assignmentRepository,
         IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
         IUnitOfWork unitOfWork)
     {
         _assignmentRepository = assignmentRepository;
         _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -40,6 +43,11 @@ public sealed class CreateAssignmentUseCase : ICreateAssignmentUseCase
 
         var classroom = await _classroomRepository.GetByIdAsync(new ClassroomId(request.ClassroomId))
             ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(request.RequestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanManageClassroom(requester, classroom);
 
         var assignment = new Domain.Entity.Assignment(
             new AssignmentId(Guid.NewGuid()),
@@ -88,20 +96,36 @@ public sealed class UpdateAssignmentUseCase : IUpdateAssignmentUseCase
 public sealed class ListAssignmentsUseCase : IListAssignmentsUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
 
-    public ListAssignmentsUseCase(IAssignmentRepository assignmentRepository)
+    public ListAssignmentsUseCase(
+        IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository)
     {
         _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<PagedResponseDto<AssignmentListItemDto>> HandleAsync(
         Guid classroomId,
+        Guid requestedByUserId,
         PagedRequestDto request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var assignments = await _assignmentRepository.GetByClassroomIdAsync(new ClassroomId(classroomId));
+        var classroom = await _classroomRepository.GetByIdAsync(new ClassroomId(classroomId))
+            ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(requestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanViewClassroom(requester, classroom);
+
+        var assignments = await _assignmentRepository.GetByClassroomIdAsync(classroom.Id);
 
         var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
         var pageSize = request.PageSize <= 0 ? 20 : request.PageSize;
@@ -125,15 +149,21 @@ public sealed class ListAssignmentsUseCase : IListAssignmentsUseCase
 public sealed class PublishAssignmentUseCase : IPublishAssignmentUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly DomainEventDispatcher _domainEventDispatcher;
 
     public PublishAssignmentUseCase(
         IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
         IUnitOfWork unitOfWork,
         DomainEventDispatcher domainEventDispatcher)
     {
         _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
         _domainEventDispatcher = domainEventDispatcher;
     }
@@ -144,6 +174,14 @@ public sealed class PublishAssignmentUseCase : IPublishAssignmentUseCase
 
         var assignment = await _assignmentRepository.GetByIdWithTestCasesAsync(new AssignmentId(request.AssignmentId))
             ?? throw new DomainException("Assignment not found.");
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId)
+            ?? throw new DomainException("Classroom not found.");
+
+        var requester = await _userRepository.GetByIdAsync(new UserId(request.RequestedByUserId))
+            ?? throw new DomainException("Requester not found.");
+
+        AssignmentAuthorization.EnsureCanManageClassroom(requester, classroom);
 
         assignment.Publish();
         var events = DomainEventUtilities.SnapshotEvents(assignment);
@@ -374,4 +412,42 @@ internal static class AssignmentUseCaseHelpers
 
     public static string SerializeCriteria(IReadOnlyList<RubricCriteriaDto> criteria)
         => JsonSerializer.Serialize(criteria ?? Array.Empty<RubricCriteriaDto>());
+}
+
+internal static class AssignmentAuthorization
+{
+    public static void EnsureCanViewClassroom(Domain.Entity.User requester, Domain.Entity.Classroom classroom)
+    {
+        if (requester.Role == UserRole.Admin)
+        {
+            return;
+        }
+
+        if (requester.Role == UserRole.Teacher && classroom.TeacherId == requester.Id)
+        {
+            return;
+        }
+
+        if (requester.Role == UserRole.Student && classroom.StudentIds.Contains(requester.Id))
+        {
+            return;
+        }
+
+        throw new DomainException("You do not have permission to view assignments in this classroom.");
+    }
+
+    public static void EnsureCanManageClassroom(Domain.Entity.User requester, Domain.Entity.Classroom classroom)
+    {
+        if (requester.Role == UserRole.Admin)
+        {
+            return;
+        }
+
+        if (requester.Role == UserRole.Teacher && classroom.TeacherId == requester.Id)
+        {
+            return;
+        }
+
+        throw new DomainException("You do not have permission to manage assignments in this classroom.");
+    }
 }

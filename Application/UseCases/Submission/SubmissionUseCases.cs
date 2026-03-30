@@ -16,17 +16,23 @@ namespace Application.UseCases.Submission;
 public sealed class SubmitCodeUseCase : ISubmitCodeUseCase
 {
     private readonly IAssignmentRepository _assignmentRepository;
+    private readonly IClassroomRepository _classroomRepository;
+    private readonly IUserRepository _userRepository;
     private readonly ISubmissionRepository _submissionRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly DomainEventDispatcher _domainEventDispatcher;
 
     public SubmitCodeUseCase(
         IAssignmentRepository assignmentRepository,
+        IClassroomRepository classroomRepository,
+        IUserRepository userRepository,
         ISubmissionRepository submissionRepository,
         IUnitOfWork unitOfWork,
         DomainEventDispatcher domainEventDispatcher)
     {
         _assignmentRepository = assignmentRepository;
+        _classroomRepository = classroomRepository;
+        _userRepository = userRepository;
         _submissionRepository = submissionRepository;
         _unitOfWork = unitOfWork;
         _domainEventDispatcher = domainEventDispatcher;
@@ -38,6 +44,22 @@ public sealed class SubmitCodeUseCase : ISubmitCodeUseCase
 
         var assignment = await _assignmentRepository.GetByIdAsync(new AssignmentId(request.AssignmentId))
             ?? throw new DomainException("Assignment not found.");
+
+        var student = await _userRepository.GetByIdAsync(new UserId(request.StudentId))
+            ?? throw new DomainException("Student not found.");
+
+        if (student.Role != UserRole.Student)
+        {
+            throw new DomainException("Only student can submit code.");
+        }
+
+        var classroom = await _classroomRepository.GetByIdAsync(assignment.ClassroomId)
+            ?? throw new DomainException("Classroom not found.");
+
+        if (!classroom.StudentIds.Contains(student.Id))
+        {
+            throw new DomainException("Student is not a member of this classroom.");
+        }
 
         if (assignment.PublishStatus != PublishStatus.Published)
         {

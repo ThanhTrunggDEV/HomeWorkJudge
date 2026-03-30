@@ -7,6 +7,7 @@ namespace Ports.DTO.Assignment;
 
 public sealed record CreateAssignmentRequestDto(
     Guid ClassroomId,
+    Guid RequestedByUserId,
     string Title,
     string Description,
     IReadOnlyList<string> AllowedLanguages,
@@ -28,7 +29,7 @@ public sealed record UpdateAssignmentRequestDto(
     long MemoryLimitKb,
     int MaxSubmissions);
 
-public sealed record PublishAssignmentRequestDto(Guid AssignmentId);
+public sealed record PublishAssignmentRequestDto(Guid AssignmentId, Guid RequestedByUserId);
 
 public sealed record AssignmentTestCaseDto(
     Guid TestCaseId,

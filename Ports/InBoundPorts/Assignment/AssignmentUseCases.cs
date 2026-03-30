@@ -25,6 +25,7 @@ public interface IListAssignmentsUseCase
 {
     Task<PagedResponseDto<AssignmentListItemDto>> HandleAsync(
         Guid classroomId,
+    Guid requestedByUserId,
         PagedRequestDto request,
         CancellationToken cancellationToken = default);
 }

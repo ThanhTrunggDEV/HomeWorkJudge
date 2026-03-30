@@ -37,18 +37,32 @@ public sealed class AssignmentController : AppControllerBase
             return View(new AssignmentListPageViewModel());
         }
 
-        var response = await _listAssignmentsUseCase.HandleAsync(
-            classroomId,
-            new PagedRequestDto(pageNumber, pageSize));
-
-        return View(new AssignmentListPageViewModel
+        if (CurrentUserId is null)
         {
-            ClassroomId = classroomId,
-            PageNumber = response.PageNumber,
-            PageSize = response.PageSize,
-            TotalCount = response.TotalCount,
-            Items = response.Items
-        });
+            return Challenge();
+        }
+
+        try
+        {
+            var response = await _listAssignmentsUseCase.HandleAsync(
+                classroomId,
+                CurrentUserId.Value,
+                new PagedRequestDto(pageNumber, pageSize));
+
+            return View(new AssignmentListPageViewModel
+            {
+                ClassroomId = classroomId,
+                PageNumber = response.PageNumber,
+                PageSize = response.PageSize,
+                TotalCount = response.TotalCount,
+                Items = response.Items
+            });
+        }
+        catch (DomainException ex)
+        {
+            SetError(ex.Message);
+            return View(new AssignmentListPageViewModel { ClassroomId = classroomId });
+        }
     }
 
     [Authorize(Policy = "TeacherOrAdmin")]
@@ -72,6 +86,11 @@ public sealed class AssignmentController : AppControllerBase
             return View(model);
         }
 
+        if (CurrentUserId is null)
+        {
+            return Challenge();
+        }
+
         try
         {
             var languages = model.AllowedLanguagesCsv
@@ -81,6 +100,7 @@ public sealed class AssignmentController : AppControllerBase
             var response = await _createAssignmentUseCase.HandleAsync(
                 new CreateAssignmentRequestDto(
                     model.ClassroomId,
+                    CurrentUserId.Value,
                     model.Title,
                     model.Description,
                     languages,
@@ -111,9 +131,14 @@ public sealed class AssignmentController : AppControllerBase
             return RedirectToAction(nameof(Index), new { classroomId = model.ClassroomId });
         }
 
+        if (CurrentUserId is null)
+        {
+            return Challenge();
+        }
+
         try
         {
-            await _publishAssignmentUseCase.HandleAsync(new PublishAssignmentRequestDto(model.AssignmentId));
+            await _publishAssignmentUseCase.HandleAsync(new PublishAssignmentRequestDto(model.AssignmentId, CurrentUserId.Value));
             SetSuccess("Assignment published.");
         }
         catch (DomainException ex)
