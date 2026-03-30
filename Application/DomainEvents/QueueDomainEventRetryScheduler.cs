@@ -35,6 +35,6 @@ public sealed class QueueDomainEventRetryScheduler : IDomainEventRetryScheduler
             CreatedAt: DateTimeOffset.UtcNow,
             RetryCount: 0);
 
-        return _backgroundJobQueuePort.EnqueueAsync(envelope, ct);
+        return _backgroundJobQueuePort.EnqueueAsync(envelope, CancellationToken.None);
     }
 }

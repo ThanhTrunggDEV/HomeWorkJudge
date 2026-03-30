@@ -47,12 +47,12 @@ public sealed class DomainEventDispatcher
                 catch (TargetInvocationException ex) when (ex.InnerException is not null)
                 {
                     _logger.LogError(ex.InnerException, "Domain event handler failed for {EventType}. Scheduling background retry.", domainEvent.GetType().Name);
-                    await _retryScheduler.ScheduleAsync(domainEvent, handlerType.FullName ?? handlerType.Name, ex.InnerException, ct);
+                    await _retryScheduler.ScheduleAsync(domainEvent, handlerType.FullName ?? handlerType.Name, ex.InnerException, CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Domain event handler failed for {EventType}. Scheduling background retry.", domainEvent.GetType().Name);
-                    await _retryScheduler.ScheduleAsync(domainEvent, handlerType.FullName ?? handlerType.Name, ex, ct);
+                    await _retryScheduler.ScheduleAsync(domainEvent, handlerType.FullName ?? handlerType.Name, ex, CancellationToken.None);
                 }
             }
         }

@@ -15,6 +15,7 @@ using Ports.DTO.Rubric;
 using Ports.DTO.Submission;
 using Ports.InBoundPorts.Grading;
 using Ports.OutBoundPorts.Judging;
+using Ports.OutBoundPorts.Queue;
 using Ports.OutBoundPorts.RubricGrading;
 
 namespace Application.UseCases.Grading;
@@ -205,10 +206,14 @@ public sealed class OverrideSubmissionScoreUseCase : IOverrideSubmissionScoreUse
 public sealed class ReviewAiRubricResultUseCase : IReviewAiRubricResultUseCase
 {
     private readonly ISubmissionRepository _submissionRepository;
+    private readonly IBackgroundJobQueuePort _backgroundJobQueuePort;
 
-    public ReviewAiRubricResultUseCase(ISubmissionRepository submissionRepository)
+    public ReviewAiRubricResultUseCase(
+        ISubmissionRepository submissionRepository,
+        IBackgroundJobQueuePort backgroundJobQueuePort)
     {
         _submissionRepository = submissionRepository;
+        _backgroundJobQueuePort = backgroundJobQueuePort;
     }
 
     public async Task HandleAsync(RubricReviewDecisionDto request, CancellationToken cancellationToken = default)
@@ -223,7 +228,26 @@ public sealed class ReviewAiRubricResultUseCase : IReviewAiRubricResultUseCase
             throw new DomainException("Teacher comment is required when AI rubric result is not approved.");
         }
 
-        _ = submission;
+        if (request.IsApproved)
+        {
+            return;
+        }
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            SubmissionId = submission.Id.Value,
+            TeacherComment = request.TeacherComment,
+            Action = "manual-rubric-regrade"
+        });
+
+        var envelope = new JobEnvelopeDto(
+            JobName: "submission.rubric.review",
+            Payload: payload,
+            CorrelationId: Guid.NewGuid().ToString("N"),
+            CreatedAt: DateTimeOffset.UtcNow,
+            RetryCount: 0);
+
+        await _backgroundJobQueuePort.EnqueueAsync(envelope, cancellationToken);
     }
 }
 
