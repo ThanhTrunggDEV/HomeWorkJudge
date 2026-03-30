@@ -48,3 +48,9 @@ _ReSharper*/
 # Local settings / secrets
 appsettings.Development.json
 appsettings.Local.json
+
+# Additional appsettings safety patterns
+**/appsettings.Local.json
+**/appsettings.*.local.json
+**/appsettings.*.secrets.json
+**/appsettings.Secrets.json
