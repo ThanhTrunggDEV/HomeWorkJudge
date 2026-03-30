@@ -1,8 +1,63 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Dashboard";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="py-3">
+    <h1 class="display-6">HomeWorkJudge Dashboard</h1>
+    <p class="text-muted">Triển khai UI theo phase: Auth -> Classroom -> Assignment -> Submission -> Grading -> Report.</p>
+</div>
+
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <div class="alert alert-info">
+        Logged in as <strong>@User.Identity.Name</strong> with role <strong>@User.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value</strong>.
+    </div>
+}
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Phase 2 - Auth</h5>
+                <p class="card-text">Register, login, profile và session cookie.</p>
+                <a asp-controller="Auth" asp-action="Login" class="btn btn-primary">Open Auth</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Phase 3 - Classroom</h5>
+                <p class="card-text">Tạo lớp (teacher/admin) và tham gia lớp (student).</p>
+                <a asp-controller="Classroom" asp-action="Index" class="btn btn-outline-primary">Open Classroom</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Phase 4 - Assignment</h5>
+                <p class="card-text">Tạo/list/publish assignment theo classroom.</p>
+                <a asp-controller="Assignment" asp-action="Index" class="btn btn-outline-primary">Open Assignment</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Phase 5 - Submission</h5>
+                <p class="card-text">Nộp bài, xem detail/history, trigger grading.</p>
+                <a asp-controller="Submission" asp-action="History" class="btn btn-outline-primary">Open Submission</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Phase 6 - Report</h5>
+                <p class="card-text">Scoreboard và export CSV.</p>
+                <a asp-controller="Report" asp-action="Scoreboard" class="btn btn-outline-primary">Open Report</a>
+            </div>
+        </div>
+    </div>
 </div>

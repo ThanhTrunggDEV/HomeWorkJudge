@@ -20,4 +20,4 @@ public sealed record AssignUserRoleRequestDto(
 
 public sealed record LoginRequestDto(string Email, string Password);
 
-public sealed record LoginResponseDto(Guid UserId, string AccessToken, DateTime ExpiresAt);
+public sealed record LoginResponseDto(Guid UserId, string AccessToken, DateTime ExpiresAt, UserRoleDto Role);

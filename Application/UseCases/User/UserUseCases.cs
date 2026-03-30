@@ -93,7 +93,7 @@ public sealed class LoginUseCase : ILoginUseCase
         var expiresAt = DateTime.UtcNow.AddHours(8);
         var token = SecureTokenGenerator.Generate();
 
-        return new LoginResponseDto(user.Id.Value, token, expiresAt);
+        return new LoginResponseDto(user.Id.Value, token, expiresAt, EnumMapper.ToDto(user.Role));
     }
 }
 

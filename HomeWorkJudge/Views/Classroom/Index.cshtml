@@ -1,0 +1,59 @@
+@model ClassroomIndexViewModel
+@{
+    ViewData["Title"] = "Classroom";
+}
+
+<h2>Classroom</h2>
+
+@if (Model.LastClassroomId.HasValue)
+{
+    <div class="alert alert-secondary">
+        Last classroom id: <strong>@Model.LastClassroomId</strong>
+        @if (!string.IsNullOrWhiteSpace(Model.LastJoinCode))
+        {
+            <span>, join code: <strong>@Model.LastJoinCode</strong></span>
+        }
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Create Classroom (Teacher/Admin)</div>
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="mb-3">
+                        <label asp-for="CreateForm.Name" class="form-label"></label>
+                        <input asp-for="CreateForm.Name" class="form-control" />
+                        <span asp-validation-for="CreateForm.Name" class="text-danger"></span>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Create</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Join Classroom (Student)</div>
+            <div class="card-body">
+                <form asp-action="Join" method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="mb-3">
+                        <label asp-for="JoinForm.JoinCode" class="form-label"></label>
+                        <input asp-for="JoinForm.JoinCode" class="form-control" />
+                        <span asp-validation-for="JoinForm.JoinCode" class="text-danger"></span>
+                    </div>
+                    <button class="btn btn-success" type="submit">Join</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
