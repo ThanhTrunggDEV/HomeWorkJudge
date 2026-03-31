@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SqliteDataAccess.PersistenceModel;
 
@@ -6,6 +7,32 @@ namespace SqliteDataAccess;
 public sealed class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    /// <summary>
+    /// Áp dụng schema migrations thủ công cho DB cũ (idempotent).
+    /// Dùng raw SQL vì project không dùng EF Migrations.
+    /// </summary>
+    public async Task ApplySchemaMigrationsAsync(CancellationToken ct = default)
+    {
+        var conn = (SqliteConnection)Database.GetDbConnection();
+        var wasOpen = conn.State == System.Data.ConnectionState.Open;
+        if (!wasOpen) await conn.OpenAsync(ct);
+
+        try
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "ALTER TABLE Submissions ADD COLUMN BuildLog TEXT NULL;";
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        catch (SqliteException ex) when (ex.Message.Contains("duplicate column"))
+        {
+            // Cột đã tồn tại → bỏ qua (idempotent)
+        }
+        finally
+        {
+            if (!wasOpen) await conn.CloseAsync();
+        }
+    }
 
     public DbSet<RubricRecord> Rubrics => Set<RubricRecord>();
     public DbSet<RubricCriteriaRecord> RubricCriteria => Set<RubricCriteriaRecord>();
@@ -69,6 +96,7 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.TotalScore).IsRequired();
             e.Property(x => x.TeacherNote).HasMaxLength(2000);
             e.Property(x => x.ErrorMessage).HasMaxLength(1000);
+            e.Property(x => x.BuildLog).HasColumnType("TEXT"); // build output không giới hạn độ dài
 
             e.HasMany(x => x.RubricResults)
              .WithOne()

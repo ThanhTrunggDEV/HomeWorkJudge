@@ -72,6 +72,7 @@ public sealed class SqliteSubmissionRepository : ISubmissionRepository
         existing.TotalScore = updated.TotalScore;
         existing.TeacherNote = updated.TeacherNote;
         existing.ErrorMessage = updated.ErrorMessage;
+        existing.BuildLog = updated.BuildLog;
         existing.IsPlagiarismSuspected = updated.IsPlagiarismSuspected;
         existing.MaxSimilarityPercentage = updated.MaxSimilarityPercentage;
 

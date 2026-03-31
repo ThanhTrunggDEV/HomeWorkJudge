@@ -20,6 +20,7 @@ public sealed class SubmissionRecord
     public double TotalScore { get; set; }
     public string? TeacherNote { get; set; }
     public string? ErrorMessage { get; set; }
+    public string? BuildLog { get; set; }
     public bool IsPlagiarismSuspected { get; set; }
     public double? MaxSimilarityPercentage { get; set; }
 

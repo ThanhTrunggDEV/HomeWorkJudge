@@ -122,6 +122,7 @@ internal static class EntityMapper
             TotalScore = s.TotalScore,
             TeacherNote = s.TeacherNote,
             ErrorMessage = s.ErrorMessage,
+            BuildLog = s.BuildLog,
             IsPlagiarismSuspected = s.IsPlagiarismSuspected,
             MaxSimilarityPercentage = s.MaxSimilarityPercentage,
             RubricResults = s.RubricResults.Select((r, i) => new RubricResultRecord
@@ -154,6 +155,7 @@ internal static class EntityMapper
         SetProp(s, "TotalScore", r.TotalScore);
         SetProp(s, "TeacherNote", r.TeacherNote);
         SetProp(s, "ErrorMessage", r.ErrorMessage);
+        SetProp(s, "BuildLog", r.BuildLog);
         SetProp(s, "IsPlagiarismSuspected", r.IsPlagiarismSuspected);
         SetProp(s, "MaxSimilarityPercentage", r.MaxSimilarityPercentage);
 
