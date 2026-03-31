@@ -2,6 +2,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/HomeWorkJudge.Application.Tests/HomeWorkJudge.Application.Tests.csproj" />
     <Project Path="tests/HomeWorkJudge.Domain.Tests/HomeWorkJudge.Domain.Tests.csproj" />
+    <Project Path="tests/HomeWorkJudge.InfrastructureService.Tests/HomeWorkJudge.InfrastructureService.Tests.csproj" />
     <Project Path="tests/HomeWorkJudge.SqliteInfrastructure.Tests/HomeWorkJudge.SqliteInfrastructure.Tests.csproj" />
     <Project Path="tests/HomeWorkJudge.UI.ViewModels.Tests/HomeWorkJudge.UI.ViewModels.Tests.csproj" />
   </Folder>
