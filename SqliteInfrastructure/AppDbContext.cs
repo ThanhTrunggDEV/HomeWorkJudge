@@ -5,146 +5,84 @@ namespace SqliteDataAccess;
 
 public sealed class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options)
-        : base(options)
-    {
-    }
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    public DbSet<UserRecord> Users => Set<UserRecord>();
-    public DbSet<ClassroomRecord> Classrooms => Set<ClassroomRecord>();
-    public DbSet<ClassroomStudentRecord> ClassroomStudents => Set<ClassroomStudentRecord>();
-    public DbSet<AssignmentRecord> Assignments => Set<AssignmentRecord>();
-    public DbSet<TestCaseRecord> TestCases => Set<TestCaseRecord>();
     public DbSet<RubricRecord> Rubrics => Set<RubricRecord>();
+    public DbSet<RubricCriteriaRecord> RubricCriteria => Set<RubricCriteriaRecord>();
+    public DbSet<GradingSessionRecord> GradingSessions => Set<GradingSessionRecord>();
     public DbSet<SubmissionRecord> Submissions => Set<SubmissionRecord>();
-    public DbSet<SubmissionTestCaseResultRecord> SubmissionTestCaseResults => Set<SubmissionTestCaseResultRecord>();
-    public DbSet<SubmissionRubricResultRecord> SubmissionRubricResults => Set<SubmissionRubricResultRecord>();
+    public DbSet<RubricResultRecord> RubricResults => Set<RubricResultRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<UserRecord>(entity =>
+        // ── Rubric ───────────────────────────────────────────────────────────
+        modelBuilder.Entity<RubricRecord>(e =>
         {
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.Email).IsRequired();
-            entity.Property(x => x.FullName).IsRequired();
-            entity.Property(x => x.PasswordHash).IsRequired();
-            entity.HasIndex(x => x.Email).IsUnique();
+            e.ToTable("Rubrics");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.Property(x => x.CreatedAt).IsRequired();
+
+            e.HasMany(x => x.Criteria)
+             .WithOne()
+             .HasForeignKey(x => x.RubricId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
-        modelBuilder.Entity<ClassroomRecord>(entity =>
+        // ── RubricCriteria ────────────────────────────────────────────────────
+        modelBuilder.Entity<RubricCriteriaRecord>(e =>
         {
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.JoinCode).IsRequired();
-            entity.Property(x => x.Name).IsRequired();
-            entity.HasIndex(x => x.JoinCode).IsUnique();
-
-            entity.HasOne<UserRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.TeacherId)
-                .OnDelete(DeleteBehavior.Restrict);
+            e.ToTable("RubricCriteria");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.Property(x => x.MaxScore).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(1000);
+            e.Property(x => x.SortOrder).IsRequired();
+            e.HasIndex(x => x.RubricId);
         });
 
-        modelBuilder.Entity<ClassroomStudentRecord>(entity =>
+        // ── GradingSession ────────────────────────────────────────────────────
+        modelBuilder.Entity<GradingSessionRecord>(e =>
         {
-            entity.HasKey(x => new { x.ClassroomId, x.StudentId });
-
-            entity.HasOne<ClassroomRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.ClassroomId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne<UserRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.StudentId)
-                .OnDelete(DeleteBehavior.Cascade);
+            e.ToTable("GradingSessions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(300);
+            e.Property(x => x.RubricId).IsRequired();
+            e.Property(x => x.CreatedAt).IsRequired();
+            e.HasIndex(x => x.RubricId);
         });
 
-        modelBuilder.Entity<AssignmentRecord>(entity =>
+        // ── Submission ────────────────────────────────────────────────────────
+        modelBuilder.Entity<SubmissionRecord>(e =>
         {
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.Title).IsRequired();
-            entity.Property(x => x.Description).IsRequired();
-            entity.Property(x => x.AllowedLanguages).IsRequired();
-            entity.HasIndex(x => x.ClassroomId);
+            e.ToTable("Submissions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.StudentIdentifier).IsRequired().HasMaxLength(200);
+            e.Property(x => x.SourceFilesJson).IsRequired().HasColumnType("TEXT");
+            e.Property(x => x.Status).IsRequired().HasMaxLength(20);
+            e.Property(x => x.TotalScore).IsRequired();
+            e.Property(x => x.TeacherNote).HasMaxLength(2000);
+            e.Property(x => x.ErrorMessage).HasMaxLength(1000);
 
-            entity.HasOne<ClassroomRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.ClassroomId)
-                .OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.RubricResults)
+             .WithOne()
+             .HasForeignKey(x => x.SubmissionId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(x => x.SessionId);
+            e.HasIndex(x => new { x.SessionId, x.StudentIdentifier }).IsUnique();
+            e.HasIndex(x => x.Status);
         });
 
-        modelBuilder.Entity<TestCaseRecord>(entity =>
+        // ── RubricResult ──────────────────────────────────────────────────────
+        modelBuilder.Entity<RubricResultRecord>(e =>
         {
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.InputData).IsRequired();
-            entity.Property(x => x.ExpectedOutput).IsRequired();
-            entity.HasIndex(x => x.AssignmentId);
-
-            entity.HasOne<AssignmentRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.AssignmentId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<RubricRecord>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.CriteriaListJson).IsRequired();
-            entity.HasIndex(x => x.AssignmentId).IsUnique();
-
-            entity.HasOne<AssignmentRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.AssignmentId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<SubmissionRecord>(entity =>
-        {
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.SourceCode).IsRequired();
-            entity.Property(x => x.Language).IsRequired();
-            entity.HasIndex(x => x.AssignmentId);
-            entity.HasIndex(x => x.StudentId);
-
-            entity.HasOne<AssignmentRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.AssignmentId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne<UserRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.StudentId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        modelBuilder.Entity<SubmissionTestCaseResultRecord>(entity =>
-        {
-            entity.HasKey(x => new { x.SubmissionId, x.SortOrder });
-            entity.Property(x => x.ActualOutput).IsRequired();
-            entity.HasIndex(x => x.SubmissionId);
-
-            entity.HasOne<SubmissionRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.SubmissionId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne<TestCaseRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.TestCaseId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        modelBuilder.Entity<SubmissionRubricResultRecord>(entity =>
-        {
-            entity.HasKey(x => new { x.SubmissionId, x.SortOrder });
-            entity.Property(x => x.CriteriaName).IsRequired();
-            entity.Property(x => x.CommentReason).IsRequired();
-            entity.HasIndex(x => x.SubmissionId);
-
-            entity.HasOne<SubmissionRecord>()
-                .WithMany()
-                .HasForeignKey(x => x.SubmissionId)
-                .OnDelete(DeleteBehavior.Cascade);
+            e.ToTable("RubricResults");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedOnAdd();
+            e.Property(x => x.CriteriaName).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Comment).HasMaxLength(2000);
+            e.HasIndex(x => x.SubmissionId);
         });
     }
 }

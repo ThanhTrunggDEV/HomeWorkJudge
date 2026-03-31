@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Domain.Entity;
 using Domain.Ports;
@@ -10,190 +12,79 @@ namespace SqliteDataAccess.Repository;
 
 public sealed class SqliteSubmissionRepository : ISubmissionRepository
 {
-    private readonly AppDbContext _context;
+    private readonly AppDbContext _db;
 
-    public SqliteSubmissionRepository(AppDbContext context)
+    public SqliteSubmissionRepository(AppDbContext db) => _db = db;
+
+    public async Task<Submission?> GetByIdAsync(SubmissionId id, CancellationToken ct = default)
     {
-        _context = context;
+        var record = await _db.Submissions
+            .Include(s => s.RubricResults)
+            .FirstOrDefaultAsync(s => s.Id == id.Value, ct);
+
+        return record is null ? null : EntityMapper.ToDomain(record);
     }
 
-    public async Task<Submission?> GetByIdAsync(SubmissionId id)
+    public async Task<IReadOnlyList<Submission>> GetBySessionIdAsync(
+        GradingSessionId sessionId, CancellationToken ct = default)
     {
-        var submissionRecord = await _context.Submissions
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id.Value);
+        var records = await _db.Submissions
+            .Include(s => s.RubricResults)
+            .Where(s => s.SessionId == sessionId.Value)
+            .OrderBy(s => s.StudentIdentifier)
+            .ToListAsync(ct);
 
-        if (submissionRecord is null)
-        {
-            return null;
-        }
-
-        var testCaseResults = await _context.SubmissionTestCaseResults
-            .AsNoTracking()
-            .Where(x => x.SubmissionId == id.Value)
-            .OrderBy(x => x.SortOrder)
-            .ToListAsync();
-
-        var rubricResults = await _context.SubmissionRubricResults
-            .AsNoTracking()
-            .Where(x => x.SubmissionId == id.Value)
-            .OrderBy(x => x.SortOrder)
-            .ToListAsync();
-
-        return SqliteEntityMapper.ToDomain(submissionRecord, testCaseResults, rubricResults);
+        return records.Select(EntityMapper.ToDomain).ToList();
     }
 
-    public async Task<IReadOnlyList<Submission>> GetByAssignmentIdAsync(AssignmentId assignmentId)
+    public async Task<IReadOnlyList<Submission>> GetByStatusAsync(
+        GradingSessionId sessionId, SubmissionStatus status, CancellationToken ct = default)
     {
-        var submissionRecords = await _context.Submissions
-            .AsNoTracking()
-            .Where(x => x.AssignmentId == assignmentId.Value)
-            .ToListAsync();
+        var statusStr = status.ToString();
+        var records = await _db.Submissions
+            .Include(s => s.RubricResults)
+            .Where(s => s.SessionId == sessionId.Value && s.Status == statusStr)
+            .OrderBy(s => s.StudentIdentifier)
+            .ToListAsync(ct);
 
-        if (submissionRecords.Count == 0)
-        {
-            return new List<Submission>();
-        }
-
-        var submissionIds = submissionRecords.Select(x => x.Id).ToList();
-
-        var allTestCaseResults = await _context.SubmissionTestCaseResults
-            .AsNoTracking()
-            .Where(x => submissionIds.Contains(x.SubmissionId))
-            .ToListAsync();
-
-        var allRubricResults = await _context.SubmissionRubricResults
-            .AsNoTracking()
-            .Where(x => submissionIds.Contains(x.SubmissionId))
-            .ToListAsync();
-
-        var testCaseLookup = allTestCaseResults
-            .GroupBy(x => x.SubmissionId)
-            .ToDictionary(x => x.Key, x => (IReadOnlyList<PersistenceModel.SubmissionTestCaseResultRecord>)x.OrderBy(r => r.SortOrder).ToList());
-
-        var rubricLookup = allRubricResults
-            .GroupBy(x => x.SubmissionId)
-            .ToDictionary(x => x.Key, x => (IReadOnlyList<PersistenceModel.SubmissionRubricResultRecord>)x.OrderBy(r => r.SortOrder).ToList());
-
-        var submissions = submissionRecords
-            .Select(record =>
-            {
-                var testCaseResults = testCaseLookup.TryGetValue(record.Id, out var t) ? t : new List<PersistenceModel.SubmissionTestCaseResultRecord>();
-                var rubricResults = rubricLookup.TryGetValue(record.Id, out var r) ? r : new List<PersistenceModel.SubmissionRubricResultRecord>();
-                return SqliteEntityMapper.ToDomain(record, testCaseResults, rubricResults);
-            })
-            .ToList();
-
-        return submissions;
+        return records.Select(EntityMapper.ToDomain).ToList();
     }
 
-    public async Task<IReadOnlyList<Submission>> GetByStudentIdAsync(UserId studentId)
+    public Task<int> CountBySessionIdAsync(GradingSessionId sessionId, CancellationToken ct = default)
+        => _db.Submissions.CountAsync(s => s.SessionId == sessionId.Value, ct);
+
+    public async Task AddRangeAsync(IEnumerable<Submission> submissions, CancellationToken ct = default)
     {
-        var submissionRecords = await _context.Submissions
-            .AsNoTracking()
-            .Where(x => x.StudentId == studentId.Value)
-            .OrderByDescending(x => x.SubmitTime)
-            .ToListAsync();
-
-        if (submissionRecords.Count == 0)
-        {
-            return new List<Submission>();
-        }
-
-        var submissionIds = submissionRecords.Select(x => x.Id).ToList();
-
-        var allTestCaseResults = await _context.SubmissionTestCaseResults
-            .AsNoTracking()
-            .Where(x => submissionIds.Contains(x.SubmissionId))
-            .ToListAsync();
-
-        var allRubricResults = await _context.SubmissionRubricResults
-            .AsNoTracking()
-            .Where(x => submissionIds.Contains(x.SubmissionId))
-            .ToListAsync();
-
-        var testCaseLookup = allTestCaseResults
-            .GroupBy(x => x.SubmissionId)
-            .ToDictionary(x => x.Key, x => (IReadOnlyList<PersistenceModel.SubmissionTestCaseResultRecord>)x.OrderBy(r => r.SortOrder).ToList());
-
-        var rubricLookup = allRubricResults
-            .GroupBy(x => x.SubmissionId)
-            .ToDictionary(x => x.Key, x => (IReadOnlyList<PersistenceModel.SubmissionRubricResultRecord>)x.OrderBy(r => r.SortOrder).ToList());
-
-        var submissions = submissionRecords
-            .Select(record =>
-            {
-                var testCaseResults = testCaseLookup.TryGetValue(record.Id, out var t) ? t : new List<PersistenceModel.SubmissionTestCaseResultRecord>();
-                var rubricResults = rubricLookup.TryGetValue(record.Id, out var r) ? r : new List<PersistenceModel.SubmissionRubricResultRecord>();
-                return SqliteEntityMapper.ToDomain(record, testCaseResults, rubricResults);
-            })
-            .ToList();
-
-        return submissions;
+        var records = submissions.Select(EntityMapper.ToRecord).ToList();
+        await _db.Submissions.AddRangeAsync(records, ct);
     }
 
-    public Task AddAsync(Submission submission)
+    public async Task UpdateAsync(Submission submission, CancellationToken ct = default)
     {
-        var submissionId = submission.Id.Value;
-        _context.Submissions.Add(SqliteEntityMapper.ToRecord(submission));
+        var existing = await _db.Submissions
+            .Include(s => s.RubricResults)
+            .FirstOrDefaultAsync(s => s.Id == submission.Id.Value, ct);
 
-        if (submission.TestCaseResults.Count > 0)
-        {
-            var testCaseRecords = submission.TestCaseResults
-                .Select((result, index) => SqliteEntityMapper.ToRecord(submissionId, result, index));
+        if (existing is null) return;
 
-            _context.SubmissionTestCaseResults.AddRange(testCaseRecords);
-        }
+        var updated = EntityMapper.ToRecord(submission);
+        existing.Status = updated.Status;
+        existing.TotalScore = updated.TotalScore;
+        existing.TeacherNote = updated.TeacherNote;
+        existing.ErrorMessage = updated.ErrorMessage;
+        existing.IsPlagiarismSuspected = updated.IsPlagiarismSuspected;
+        existing.MaxSimilarityPercentage = updated.MaxSimilarityPercentage;
 
-        if (submission.RubricResults.Count > 0)
-        {
-            var rubricRecords = submission.RubricResults
-                .Select((result, index) => SqliteEntityMapper.ToRecord(submissionId, result, index));
-
-            _context.SubmissionRubricResults.AddRange(rubricRecords);
-        }
-
-        return Task.CompletedTask;
+        // Sync RubricResults
+        _db.RubricResults.RemoveRange(existing.RubricResults);
+        foreach (var r in updated.RubricResults)
+            r.SubmissionId = existing.Id;
+        existing.RubricResults = updated.RubricResults;
     }
 
-    public async Task UpdateAsync(Submission submission)
+    public async Task UpdateRangeAsync(IEnumerable<Submission> submissions, CancellationToken ct = default)
     {
-        var submissionRecord = SqliteEntityMapper.ToRecord(submission);
-        var exists = await _context.Submissions.AnyAsync(x => x.Id == submissionRecord.Id);
-
-        if (exists)
-        {
-            _context.Submissions.Update(submissionRecord);
-        }
-        else
-        {
-            await _context.Submissions.AddAsync(submissionRecord);
-        }
-
-        var existingTestCaseResults = _context.SubmissionTestCaseResults
-            .Where(x => x.SubmissionId == submissionRecord.Id);
-
-        _context.SubmissionTestCaseResults.RemoveRange(existingTestCaseResults);
-
-        if (submission.TestCaseResults.Count > 0)
-        {
-            var testCaseRecords = submission.TestCaseResults
-                .Select((result, index) => SqliteEntityMapper.ToRecord(submissionRecord.Id, result, index));
-
-            _context.SubmissionTestCaseResults.AddRange(testCaseRecords);
-        }
-
-        var existingRubricResults = _context.SubmissionRubricResults
-            .Where(x => x.SubmissionId == submissionRecord.Id);
-
-        _context.SubmissionRubricResults.RemoveRange(existingRubricResults);
-
-        if (submission.RubricResults.Count > 0)
-        {
-            var rubricRecords = submission.RubricResults
-                .Select((result, index) => SqliteEntityMapper.ToRecord(submissionRecord.Id, result, index));
-
-            _context.SubmissionRubricResults.AddRange(rubricRecords);
-        }
+        foreach (var submission in submissions)
+            await UpdateAsync(submission, ct);
     }
 }
