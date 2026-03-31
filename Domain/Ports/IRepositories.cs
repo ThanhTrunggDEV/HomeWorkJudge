@@ -11,36 +11,35 @@ public interface IUnitOfWork
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
-public interface IUserRepository
+// ── Rubric AR ────────────────────────────────────────────────────────────────
+public interface IRubricRepository
 {
-    Task<User?> GetByIdAsync(UserId id);
-    Task<User?> GetByEmailAsync(string email);
-    Task AddAsync(User user);
-    Task UpdateAsync(User user);
+    Task<Rubric?> GetByIdAsync(RubricId id, CancellationToken ct = default);
+    Task<IReadOnlyList<Rubric>> GetAllAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Rubric>> SearchByNameAsync(string keyword, CancellationToken ct = default);
+    Task AddAsync(Rubric rubric, CancellationToken ct = default);
+    Task UpdateAsync(Rubric rubric, CancellationToken ct = default);
+    Task DeleteAsync(RubricId id, CancellationToken ct = default);
 }
 
-public interface IClassroomRepository
+// ── GradingSession AR ────────────────────────────────────────────────────────
+public interface IGradingSessionRepository
 {
-    Task<Classroom?> GetByIdAsync(ClassroomId id);
-    Task<Classroom?> GetByJoinCodeAsync(string joinCode);
-    Task AddAsync(Classroom classroom);
-    Task UpdateAsync(Classroom classroom);
+    Task<GradingSession?> GetByIdAsync(GradingSessionId id, CancellationToken ct = default);
+    Task<IReadOnlyList<GradingSession>> GetAllAsync(CancellationToken ct = default);
+    Task AddAsync(GradingSession session, CancellationToken ct = default);
+    Task UpdateAsync(GradingSession session, CancellationToken ct = default);
+    Task DeleteAsync(GradingSessionId id, CancellationToken ct = default);
 }
 
-public interface IAssignmentRepository
-{
-    Task<Assignment?> GetByIdAsync(AssignmentId id);
-    Task<Assignment?> GetByIdWithTestCasesAsync(AssignmentId id);
-    Task<IReadOnlyList<Assignment>> GetByClassroomIdAsync(ClassroomId classroomId);
-    Task AddAsync(Assignment assignment);
-    Task UpdateAsync(Assignment assignment);
-}
-
+// ── Submission AR ────────────────────────────────────────────────────────────
 public interface ISubmissionRepository
 {
-    Task<Submission?> GetByIdAsync(SubmissionId id);
-    Task<IReadOnlyList<Submission>> GetByAssignmentIdAsync(AssignmentId assignmentId);
-    Task<IReadOnlyList<Submission>> GetByStudentIdAsync(UserId studentId);
-    Task AddAsync(Submission submission);
-    Task UpdateAsync(Submission submission);
+    Task<Submission?> GetByIdAsync(SubmissionId id, CancellationToken ct = default);
+    Task<IReadOnlyList<Submission>> GetBySessionIdAsync(GradingSessionId sessionId, CancellationToken ct = default);
+    Task<IReadOnlyList<Submission>> GetByStatusAsync(GradingSessionId sessionId, SubmissionStatus status, CancellationToken ct = default);
+    Task<int> CountBySessionIdAsync(GradingSessionId sessionId, CancellationToken ct = default);
+    Task AddRangeAsync(IEnumerable<Submission> submissions, CancellationToken ct = default);
+    Task UpdateAsync(Submission submission, CancellationToken ct = default);
+    Task UpdateRangeAsync(IEnumerable<Submission> submissions, CancellationToken ct = default);
 }

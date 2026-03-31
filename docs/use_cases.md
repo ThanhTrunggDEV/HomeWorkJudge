@@ -1,65 +1,109 @@
 # Danh sách Use Case
 
-**Ứng dụng hỗ trợ chấm bài tập thực hành lập trình**  
-**Tổng cộng:** 24 Use Case | 5 Nhóm
+**Ứng dụng local hỗ trợ giảng viên chấm bài tập lập trình bằng AI theo Rubric**
+**Tổng cộng:** 14 Use Case | 6 Nhóm
 
-## Nhóm 1 — Quản lý bài tập
+---
 
-| ID | Tên Use Case | Actor | Mô tả |
-| :--- | :--- | :--- | :--- |
-| UC01 | Tạo bài tập mới | Giáo viên | Nhập tên, đề bài, ngôn ngữ, thời hạn nộp, loại chấm (test case hay rubric) |
-| UC02 | Thêm / sửa / xóa test case | Giáo viên | Định nghĩa cặp input/output mẫu cho bài có test case |
-| UC03 | Tạo rubric chấm điểm | Giáo viên | Định nghĩa các tiêu chí + trọng số điểm cho bài không có test case |
-| UC04 | Publish / ẩn bài tập | Giáo viên | Kiểm soát thời điểm học sinh thấy bài |
-| UC05 | Xem danh sách bài tập | Giáo viên, Học sinh | Lọc theo lớp, trạng thái, thời hạn |
-| UC05.1 | Chấm lại toàn bộ bài (Re-judge) | Giáo viên | Yêu cầu hệ thống tự động chấm lại tất cả bài nộp của học sinh (thường dùng sau khi cập nhật lại test case bị sai) |
+## Actors
 
-## Nhóm 2 — Nộp bài & Chấm tự động (có test case)
+| Actor | Loại | Mô tả |
+| :--- | :--- | :--- |
+| Giảng viên (GV) | Primary | Người dùng duy nhất thao tác trên hệ thống |
+| AI Service | External | API bên ngoài (OpenAI / Gemini) — tạo rubric gợi ý và chấm bài |
 
-| ID | Tên Use Case | Actor | Mô tả |
-| :--- | :--- | :--- | :--- |
-| UC06 | Nộp code | Học sinh | Paste code hoặc upload file, chọn ngôn ngữ |
-| UC08 | Chấm tự động qua test case | Hệ thống | Chạy từng test case, trả về Passed / Failed / Timeout / Runtime Error |
-| UC11 | Giáo viên chấm tay / chỉnh điểm | Giáo viên | Override điểm tự động nếu cần |
+---
 
-## Nhóm 3 — Chấm theo Rubric (không có test case)
+## Luồng nghiệp vụ chính
 
-| ID | Tên Use Case | Actor | Mô tả |
-| :--- | :--- | :--- | :--- |
-| UC-R01 | Tạo rubric cho bài tập | Giáo viên | Định nghĩa tiêu chí, mô tả từng mức điểm |
-| UC-R02 | AI chấm theo rubric | AI | Đọc đề bài + rubric + code, cho điểm từng tiêu chí kèm lý do |
-| UC-R03 | Giáo viên review kết quả AI | Giáo viên | Xem điểm AI đề xuất, đồng ý hoặc chỉnh sửa |
-| UC-R04 | Giáo viên override từng tiêu chí | Giáo viên | Chỉnh điểm từng hạng mục trong rubric |
-| UC-R05 | Học sinh xem điểm chi tiết theo tiêu chí | Học sinh | Biết rõ bị trừ điểm ở đâu, tại sao |
-| UC-R06 | Học sinh hỏi AI lý do trừ điểm | Học sinh | Chat với AI để hiểu sâu hơn về nhận xét |
+```
+1. GV tạo / chọn Rubric
+        ↓
+2. GV tạo phiên chấm (đặt tên session + chọn rubric + upload folder)
+        ↓
+3. GV kích hoạt AI chấm bài
+        ↓
+4. GV review kết quả, chỉnh điểm nếu cần
+        ↓
+5. GV xem bảng điểm / export
+```
 
-## Nhóm 4 — Kết quả & Phản hồi
+---
 
-| ID | Tên Use Case | Actor | Mô tả |
-| :--- | :--- | :--- | :--- |
-| UC12 | Xem kết quả chi tiết từng test case | Học sinh | Thấy input/output kỳ vọng vs thực tế |
-| UC13 | Nhận phản hồi & gợi ý từ AI | Học sinh | Gợi ý cách sửa lỗi, tối ưu code |
-| UC14 | Xem lịch sử các lần nộp | Học sinh | So sánh điểm qua các lần submit |
-| UC15 | Xem bảng điểm cả lớp | Giáo viên | Thống kê điểm, tỷ lệ pass/fail từng bài |
-| UC16 | Export báo cáo điểm | Giáo viên | Xuất file CSV/Excel để lưu trữ hoặc nhập điểm hệ thống trường |
+## Nhóm 1 — Quản lý Rubric
 
-## Nhóm 5 — Quản lý người dùng & Lớp học
+> Rubric là độc lập, có thể tái sử dụng cho nhiều phiên chấm.
+> GV có thể tạo tay hoặc nhờ AI tạo bản nháp rồi chỉnh lại.
 
 | ID | Tên Use Case | Actor | Mô tả |
 | :--- | :--- | :--- | :--- |
-| UC17 | Đăng ký / Đăng nhập | Tất cả | Hỗ trợ email hoặc SSO (Google, GitHub) |
-| UC18 | Tạo & quản lý lớp học | Giáo viên | Tạo lớp, gán bài tập, quản lý thành viên |
-| UC19 | Tham gia lớp bằng mã | Học sinh | Nhập mã lớp để join |
-| UC20 | Phân quyền hệ thống | Admin | Gán vai trò Admin / Giáo viên / Học sinh |
+| UC-01 | Tạo Rubric thủ công | GV | Nhập tên rubric, thêm từng tiêu chí (tên, điểm tối đa, mô tả mức điểm), lưu lại để tái sử dụng |
+| UC-02 | Tạo Rubric bằng AI gợi ý | GV, AI | GV nhập đề bài / mô tả yêu cầu → AI tạo bản nháp rubric → GV chỉnh sửa → lưu lại |
+| UC-03 | Sửa / Nhân bản Rubric | GV | Sửa tiêu chí trong rubric đã lưu, hoặc nhân bản (clone) thành bản sao mới để chỉnh mà không ảnh hưởng bản gốc |
+| UC-04 | Xem danh sách Rubric | GV | Xem tất cả rubric đã lưu, tìm kiếm theo tên, xem trước nội dung |
+
+---
+
+## Nhóm 2 — Phiên chấm bài
+
+> Một phiên chấm = 1 đợt bài nộp + 1 rubric.
+
+| ID | Tên Use Case | Actor | Mô tả |
+| :--- | :--- | :--- | :--- |
+| UC-05 | Tạo phiên chấm mới | GV | Đặt tên phiên (VD: "Bài 1 - Lớp CS101"), chọn rubric, upload folder bài nộp (mỗi file zip/rar = 1 SV, tên file = định danh SV) |
+| UC-06 | Xem danh sách phiên chấm | GV | Xem các phiên đã tạo: tên, rubric, số bài nộp, số bài đã chấm, số bài chờ review |
+
+---
+
+## Nhóm 3 — Chấm bài
+
+> GV kích hoạt chấm, AI xử lý từng bài theo rubric.
+> Hệ thống lưu kết quả và chờ GV review.
+
+| ID | Tên Use Case | Actor | Mô tả |
+| :--- | :--- | :--- | :--- |
+| UC-07 | Kích hoạt AI chấm bài | GV, AI | GV bấm "Chấm bài" → AI lần lượt đọc code + rubric → cho điểm + nhận xét từng tiêu chí → lưu kết quả, hiển thị tiến độ realtime |
+| UC-08 | Chấm lại (Re-grade) | GV, AI | GV chọn chấm lại 1 bài cụ thể (VD: bài AI bị lỗi/timeout) hoặc chấm lại toàn bộ (VD: sau khi sửa rubric) |
+
+---
+
+## Nhóm 4 — Review kết quả
+
+> Sau khi AI chấm xong, GV review lại từng bài trước khi chốt điểm.
+
+| ID | Tên Use Case | Actor | Mô tả |
+| :--- | :--- | :--- | :--- |
+| UC-09 | Xem chi tiết kết quả bài nộp | GV | Xem source code + bảng điểm từng tiêu chí + nhận xét AI + tổng điểm |
+| UC-10 | Review / chỉnh điểm | GV | GV duyệt điểm AI, hoặc sửa điểm từng tiêu chí kèm lý do, hoặc override điểm tổng → chốt điểm |
+
+---
+
+## Nhóm 5 — Báo cáo
+
+| ID | Tên Use Case | Actor | Mô tả |
+| :--- | :--- | :--- | :--- |
+| UC-11 | Xem bảng điểm phiên chấm | GV | Bảng tổng hợp: tên SV (tên file) × điểm từng tiêu chí + tổng, trạng thái từng bài. Thống kê TB, Min, Max, tỷ lệ đạt |
+| UC-12 | Export điểm | GV | Xuất CSV / Excel: cột định danh SV = tên file (VD: `2021001`), kèm tổng điểm hoặc chi tiết từng tiêu chí + nhận xét |
+
+---
+
+## Nhóm 6 — Cấu hình
+
+| ID | Tên Use Case | Actor | Mô tả |
+| :--- | :--- | :--- | :--- |
+| UC-13 | Cấu hình AI Provider | GV | Chọn provider (OpenAI / Gemini), nhập API key, chọn model, cấu hình timeout, test kết nối |
+
+---
 
 ## Tổng hợp
 
 | Nhóm | Tên nhóm | Số UC |
 | :--- | :--- | :--- |
-| 1 | Quản lý bài tập | 6 |
-| 2 | Nộp bài & Chấm tự động | 3 |
-| 3 | Chấm theo Rubric | 6 |
-| 4 | Kết quả & Phản hồi | 5 |
-| 5 | Quản lý người dùng & Lớp học | 4 |
+| 1 | Quản lý Rubric | 4 |
+| 2 | Phiên chấm bài | 2 |
+| 3 | Chấm bài | 2 |
+| 4 | Review kết quả | 2 |
+| 5 | Báo cáo | 2 |
+| 6 | Cấu hình | 1 |
 
-**Tổng cộng:** 24 Use Case
+**Tổng cộng:** 14 Use Case (đã gộp 3 cặp, sửa 1 UC)

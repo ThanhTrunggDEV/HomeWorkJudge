@@ -5,23 +5,37 @@ namespace Domain.Event;
 
 public interface IDomainEvent
 {
-	DateTimeOffset OccurredOn { get; }
+    DateTimeOffset OccurredOn { get; }
 }
 
-public sealed record AssignmentPublishedEvent(
-	AssignmentId AssignmentId,
-	DateTime PublishedAt,
-	DateTimeOffset OccurredOn
+// ── Submission import ────────────────────────────────────────────────────────
+public sealed record SubmissionsImportedEvent(
+    GradingSessionId SessionId,
+    int Count,
+    DateTimeOffset OccurredOn
 ) : IDomainEvent;
 
-public sealed record SubmissionCreatedEvent(
-	SubmissionId SubmissionId,
-	AssignmentId AssignmentId,
-	DateTimeOffset OccurredOn
+// ── AI grading ───────────────────────────────────────────────────────────────
+public sealed record SubmissionGradingStartedEvent(
+    SubmissionId SubmissionId,
+    DateTimeOffset OccurredOn
 ) : IDomainEvent;
 
-public sealed record SubmissionGradingCompletedEvent(
-	SubmissionId SubmissionId,
-	double TotalScore,
-	DateTimeOffset OccurredOn
+public sealed record SubmissionAIGradedEvent(
+    SubmissionId SubmissionId,
+    double TotalScore,
+    DateTimeOffset OccurredOn
+) : IDomainEvent;
+
+public sealed record SubmissionAIFailedEvent(
+    SubmissionId SubmissionId,
+    string ErrorMessage,
+    DateTimeOffset OccurredOn
+) : IDomainEvent;
+
+// ── Review ───────────────────────────────────────────────────────────────────
+public sealed record SubmissionReviewedEvent(
+    SubmissionId SubmissionId,
+    double FinalScore,
+    DateTimeOffset OccurredOn
 ) : IDomainEvent;
