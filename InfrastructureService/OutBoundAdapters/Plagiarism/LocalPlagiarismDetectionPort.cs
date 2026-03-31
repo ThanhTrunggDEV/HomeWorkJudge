@@ -5,95 +5,87 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using InfrastructureService.Common.Resilience;
+using Ports.DTO.Submission;
 using Ports.OutBoundPorts.Plagiarism;
 
 namespace InfrastructureService.OutBoundAdapters.Plagiarism;
 
+/// <summary>
+/// Implements IPlagiarismDetectionPort bằng Jaccard similarity trên tokens + shingles.
+/// So sánh O(n²) tất cả cặp bài nộp. Phù hợp cho phòng học ~100 sv.
+/// </summary>
 public sealed partial class LocalPlagiarismDetectionPort : IPlagiarismDetectionPort
 {
-    private readonly IOperationExecutor _operationExecutor;
+    private readonly IOperationExecutor _executor;
 
-    public LocalPlagiarismDetectionPort(IOperationExecutor operationExecutor)
+    public LocalPlagiarismDetectionPort(IOperationExecutor executor)
+        => _executor = executor;
+
+    public Task<IReadOnlyList<PlagiarismResultDto>> DetectAsync(
+        IReadOnlyList<SubmissionFilesDto> submissions,
+        CancellationToken ct = default)
+        => _executor.ExecuteAsync(
+            "plagiarism.detect-session",
+            token => DetectInternalAsync(submissions, token),
+            ct);
+
+    private static Task<IReadOnlyList<PlagiarismResultDto>> DetectInternalAsync(
+        IReadOnlyList<SubmissionFilesDto> submissions,
+        CancellationToken ct)
     {
-        _operationExecutor = operationExecutor;
+        var result = new List<PlagiarismResultDto>();
+
+        for (int i = 0; i < submissions.Count; i++)
+        {
+            for (int j = i + 1; j < submissions.Count; j++)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var leftCode  = ConcatCode(submissions[i].SourceFiles);
+                var rightCode = ConcatCode(submissions[j].SourceFiles);
+
+                var tokenSim   = Jaccard(Tokenize(leftCode), Tokenize(rightCode));
+                var shingleSim = Jaccard(Shingles(leftCode, 5), Shingles(rightCode, 5));
+                var similarity = Math.Round(Math.Clamp(tokenSim * 0.6 + shingleSim * 0.4, 0, 1) * 100, 2);
+
+                result.Add(new PlagiarismResultDto(
+                    SubmissionIdA: submissions[i].SubmissionId,
+                    SubmissionIdB: submissions[j].SubmissionId,
+                    StudentIdentifierA: submissions[i].StudentIdentifier,
+                    StudentIdentifierB: submissions[j].StudentIdentifier,
+                    SimilarityPercentage: similarity));
+            }
+        }
+
+        return Task.FromResult<IReadOnlyList<PlagiarismResultDto>>(result);
     }
 
-    public Task<double> CalculateSimilarityAsync(
-        string leftSourceCode,
-        string rightSourceCode,
-        CancellationToken cancellationToken = default)
-        => _operationExecutor.ExecuteAsync(
-            "plagiarism.calculate-similarity",
-            ct => CalculateInternalAsync(leftSourceCode, rightSourceCode, ct),
-            cancellationToken);
+    private static string ConcatCode(IReadOnlyList<SourceFileDto> files)
+        => string.Join("\n", files.Select(f => f.Content));
 
-    private static Task<double> CalculateInternalAsync(
-        string leftSourceCode,
-        string rightSourceCode,
-        CancellationToken cancellationToken)
+    private static HashSet<string> Tokenize(string src)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var leftTokenSet = Tokenize(leftSourceCode);
-        var rightTokenSet = Tokenize(rightSourceCode);
-
-        var tokenSimilarity = Jaccard(leftTokenSet, rightTokenSet);
-        var shingleSimilarity = Jaccard(ToShingles(leftSourceCode, 5), ToShingles(rightSourceCode, 5));
-
-        var similarity = Math.Clamp(tokenSimilarity * 0.6 + shingleSimilarity * 0.4, 0, 1);
-        return Task.FromResult(Math.Round(similarity, 4));
+        if (string.IsNullOrWhiteSpace(src)) return [];
+        return [.. TokenRegex().Matches(src)
+            .Select(m => m.Value.ToLowerInvariant())
+            .Where(t => t.Length > 1)];
     }
 
-    private static HashSet<string> Tokenize(string source)
+    private static HashSet<string> Shingles(string src, int k)
     {
-        if (string.IsNullOrWhiteSpace(source))
-        {
-            return [];
-        }
-
-        var matches = TokenRegex().Matches(source);
-        var tokens = matches
-            .Select(match => match.Value.ToLowerInvariant())
-            .Where(token => token.Length > 1);
-
-        return [.. tokens];
+        var norm = new string(src.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToLowerInvariant();
+        if (norm.Length <= k) return string.IsNullOrEmpty(norm) ? [] : [norm];
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        for (int i = 0; i <= norm.Length - k; i++) set.Add(norm.Substring(i, k));
+        return set;
     }
 
-    private static HashSet<string> ToShingles(string source, int shingleLength)
+    private static double Jaccard(HashSet<string> a, HashSet<string> b)
     {
-        var normalized = string.Concat((source ?? string.Empty).Where(c => !char.IsWhiteSpace(c))).ToLowerInvariant();
-        if (normalized.Length <= shingleLength)
-        {
-            return string.IsNullOrEmpty(normalized)
-                ? []
-                : [normalized];
-        }
-
-        var shingles = new HashSet<string>(StringComparer.Ordinal);
-        for (var i = 0; i <= normalized.Length - shingleLength; i++)
-        {
-            shingles.Add(normalized.Substring(i, shingleLength));
-        }
-
-        return shingles;
-    }
-
-    private static double Jaccard(HashSet<string> left, HashSet<string> right)
-    {
-        if (left.Count == 0 && right.Count == 0)
-        {
-            return 0;
-        }
-
-        var intersectionCount = left.Intersect(right).Count();
-        var unionCount = left.Union(right).Count();
-
-        if (unionCount == 0)
-        {
-            return 0;
-        }
-
-        return (double)intersectionCount / unionCount;
+        if (a.Count == 0 && b.Count == 0) return 0;
+        var intersection = a.Intersect(b).Count();
+        var union        = a.Union(b).Count();
+        return union == 0 ? 0 : (double)intersection / union;
     }
 
     [GeneratedRegex("[A-Za-z_][A-Za-z0-9_]*|[0-9]+", RegexOptions.Compiled)]

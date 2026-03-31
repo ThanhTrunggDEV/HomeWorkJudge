@@ -12,360 +12,217 @@ using InfrastructureService.Common.Resilience;
 using InfrastructureService.Configuration.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Ports.DTO.AI;
 using Ports.DTO.Rubric;
+using Ports.DTO.Submission;
 using Ports.OutBoundPorts.AI;
 
 namespace InfrastructureService.OutBoundAdapters.AI;
 
+/// <summary>
+/// Implements IAiGradingPort via Google Gemini API.
+/// Gửi source code files + rubric criteria → nhận điểm từng tiêu chí.
+/// </summary>
 public sealed class GeminiGradingPort : IAiGradingPort
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     private readonly HttpClient _httpClient;
-    private readonly IOperationExecutor _operationExecutor;
+    private readonly IOperationExecutor _executor;
     private readonly AiOptions _options;
     private readonly ILogger<GeminiGradingPort> _logger;
 
     public GeminiGradingPort(
         HttpClient httpClient,
-        IOperationExecutor operationExecutor,
+        IOperationExecutor executor,
         IOptions<AiOptions> options,
         ILogger<GeminiGradingPort> logger)
     {
         _httpClient = httpClient;
-        _operationExecutor = operationExecutor;
-        _options = options.Value;
-        _logger = logger;
+        _executor   = executor;
+        _options    = options.Value;
+        _logger     = logger;
     }
 
-    public Task<AiGradeSubmissionResponseDto> GradeSubmissionAsync(
-        AiGradeSubmissionRequestDto request,
-        CancellationToken cancellationToken = default)
-        => _operationExecutor.ExecuteAsync(
-            "ai.gemini.grade-submission",
-            ct => GradeInternalAsync(request, ct),
-            cancellationToken);
+    public Task<IReadOnlyList<RubricScoreDto>> GradeAsync(
+        IReadOnlyList<SourceFileDto> sourceFiles,
+        IReadOnlyList<RubricCriteriaDto> criteria,
+        CancellationToken ct = default)
+        => _executor.ExecuteAsync(
+            "ai.gemini.grade",
+            token => GradeInternalAsync(sourceFiles, criteria, token),
+            ct);
 
-    private async Task<AiGradeSubmissionResponseDto> GradeInternalAsync(
-        AiGradeSubmissionRequestDto request,
-        CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<RubricScoreDto>> GradeInternalAsync(
+        IReadOnlyList<SourceFileDto> sourceFiles,
+        IReadOnlyList<RubricCriteriaDto> criteria,
+        CancellationToken ct)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        ct.ThrowIfCancellationRequested();
 
-        if (request is null)
+        var gemini = ValidateAndGetOptions();
+        var uri    = BuildUri(gemini);
+        var prompt = BuildGradingPrompt(sourceFiles, criteria);
+        var body   = BuildRequestBody(prompt, gemini.Temperature);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, uri)
         {
-            throw new ArgumentNullException(nameof(request));
-        }
+            Content = new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json")
+        };
 
-        if (!string.Equals(_options.Provider, "Gemini", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InfrastructureException(
-                "AI_PROVIDER_UNSUPPORTED",
-                $"AI provider '{_options.Provider}' is not supported. Supported values: Gemini.");
-        }
-
-        var providerOptions = _options.Gemini;
-
-        if (string.IsNullOrWhiteSpace(providerOptions.ApiKey))
-        {
-            throw new InfrastructureException("AI_CONFIGURATION_INVALID", "Gemini ApiKey is missing.");
-        }
-
-        if (string.IsNullOrWhiteSpace(providerOptions.Model))
-        {
-            throw new InfrastructureException("AI_CONFIGURATION_INVALID", "Gemini Model is missing.");
-        }
-
-        var uri = BuildGeminiUri(providerOptions.BaseUrl, providerOptions.Model, providerOptions.ApiKey);
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, uri);
-
-        var payload = BuildGeminiPayload(request, providerOptions.Temperature);
-        httpRequest.Content = new StringContent(payload, Encoding.UTF8, "application/json");
-
-        using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        var content = await response.Content.ReadAsStringAsync(ct);
 
         if (!response.IsSuccessStatusCode)
         {
-            var responseId = TryGetHeader(response, "x-request-id") ?? "n/a";
-            _logger.LogError(
-                "Gemini request failed with status {StatusCode}. RequestId={RequestId}. ResponseLength={ResponseLength}.",
-                (int)response.StatusCode,
-                responseId,
-                responseContent.Length);
-
-            throw new InfrastructureException(
-                "AI_PROVIDER_REQUEST_FAILED",
-                $"Gemini request failed with status {(int)response.StatusCode}.");
+            _logger.LogError("Gemini grading failed {Status}: {Content}", (int)response.StatusCode, content[..Math.Min(200, content.Length)]);
+            throw new InfrastructureException("AI_PROVIDER_REQUEST_FAILED", $"Gemini returned HTTP {(int)response.StatusCode}.");
         }
 
-        try
-        {
-            var modelJson = ExtractModelJson(responseContent);
-            return ParseGradeResponse(request, modelJson);
-        }
-        catch (Exception ex) when (ex is not InfrastructureException)
-        {
-            _logger.LogError(ex, "Failed to parse Gemini grading response.");
-            throw new InfrastructureException(
-                "AI_RESPONSE_INVALID",
-                "Gemini response payload is invalid for grading result.",
-                ex);
-        }
+        var modelJson = ExtractText(content);
+        return ParseScores(modelJson, criteria);
     }
 
-    private static Uri BuildGeminiUri(string baseUrl, string model, string apiKey)
+    // ── IAiRubricGeneratorPort is handled separately, but reuse HTTP helpers ──
+
+    internal async Task<IReadOnlyList<RubricCriteriaDto>> GenerateRubricAsync(
+        string assignmentDescription,
+        IOptions<AiOptions> options,
+        CancellationToken ct)
     {
-        var normalizedBaseUrl = string.IsNullOrWhiteSpace(baseUrl)
-            ? "https://generativelanguage.googleapis.com"
-            : baseUrl.Trim().TrimEnd('/');
+        var gemini = options.Value.Gemini;
+        var uri    = BuildUri(gemini);
+        var prompt = BuildRubricPrompt(assignmentDescription);
+        var body   = BuildRequestBody(prompt, gemini.Temperature);
 
-        var encodedModel = Uri.EscapeDataString(model.Trim());
-        var encodedKey = Uri.EscapeDataString(apiKey.Trim());
-        var fullUrl = $"{normalizedBaseUrl}/v1beta/models/{encodedModel}:generateContent?key={encodedKey}";
-
-        if (!Uri.TryCreate(fullUrl, UriKind.Absolute, out var uri))
+        using var request = new HttpRequestMessage(HttpMethod.Post, uri)
         {
-            throw new InfrastructureException("AI_CONFIGURATION_INVALID", "Gemini BaseUrl or Model is invalid.");
-        }
-
-        return uri;
-    }
-
-    private static string BuildGeminiPayload(AiGradeSubmissionRequestDto request, double temperature)
-    {
-        var systemPrompt =
-            "You are an objective programming assignment grader. " +
-            "Return strictly valid JSON only, no markdown. " +
-            "Schema: {\"scores\":[{\"criteriaName\":string,\"score\":number,\"comment\":string}],\"feedback\":{\"summary\":string,\"suggestions\":[string]}}. " +
-            "Score each criterion in range [0, criterion.weight].";
-
-        var rubricText = string.Join(
-            "\n",
-            request.Criteria.Select(c => $"- {c.Name} (weight={c.Weight.ToString(CultureInfo.InvariantCulture)}): {c.Description}"));
-
-        var userPrompt =
-            "Evaluate this submission with the rubric and produce JSON.\n" +
-            $"Assignment title: {request.AssignmentTitle}\n" +
-            $"Assignment description: {request.AssignmentDescription}\n" +
-            $"Language: {request.Language}\n" +
-            "Rubric criteria:\n" + rubricText + "\n" +
-            "Source code:\n" + request.SourceCode;
-
-        var body = new
-        {
-            systemInstruction = new
-            {
-                parts = new[] { new { text = systemPrompt } }
-            },
-            contents = new[]
-            {
-                new
-                {
-                    role = "user",
-                    parts = new[] { new { text = userPrompt } }
-                }
-            },
-            generationConfig = new
-            {
-                temperature = Math.Clamp(temperature, 0, 2),
-                responseMimeType = "application/json"
-            }
+            Content = new StringContent(JsonSerializer.Serialize(body, JsonOptions), Encoding.UTF8, "application/json")
         };
 
-        return JsonSerializer.Serialize(body, JsonOptions);
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        var content = await response.Content.ReadAsStringAsync(ct);
+
+        if (!response.IsSuccessStatusCode)
+            throw new InfrastructureException("AI_PROVIDER_REQUEST_FAILED", $"Gemini returned HTTP {(int)response.StatusCode}.");
+
+        var modelJson = ExtractText(content);
+        return ParseCriteria(modelJson);
     }
 
-    private static string ExtractModelJson(string geminiResponseJson)
+    // ── Prompt builders ──────────────────────────────────────────────────────
+
+    private static string BuildGradingPrompt(IReadOnlyList<SourceFileDto> files, IReadOnlyList<RubricCriteriaDto> criteria)
     {
-        using var document = JsonDocument.Parse(geminiResponseJson);
+        var filesText  = string.Join("\n\n", files.Select(f => $"=== {f.FileName} ===\n{f.Content}"));
+        var rubricText = string.Join("\n", criteria.Select(c =>
+            $"- {c.Name} (maxScore={c.MaxScore.ToString(CultureInfo.InvariantCulture)}): {c.Description}"));
 
-        if (!document.RootElement.TryGetProperty("candidates", out var candidates) ||
-            candidates.ValueKind != JsonValueKind.Array ||
-            candidates.GetArrayLength() == 0)
-        {
-            throw new InfrastructureException("AI_RESPONSE_INVALID", "Gemini response does not contain candidates.");
-        }
+        return "You are an objective programming assignment grader.\n" +
+               "Return strictly valid JSON only, no markdown.\n" +
+               "Schema: {\"scores\":[{\"criteriaName\":string,\"givenScore\":number,\"comment\":string}]}\n" +
+               "Score each criterion in range [0, maxScore].\n\n" +
+               "Rubric criteria:\n" + rubricText + "\n\n" +
+               "Source files:\n" + filesText;
+    }
 
-        foreach (var candidate in candidates.EnumerateArray())
-        {
-            var text = TryExtractCandidateText(candidate);
-            if (!string.IsNullOrWhiteSpace(text))
+    private static string BuildRubricPrompt(string assignmentDescription)
+        => "You are an academic rubric designer for programming assignments.\n" +
+           "Return strictly valid JSON only, no markdown.\n" +
+           "Schema: {\"criteria\":[{\"name\":string,\"maxScore\":number,\"description\":string}]}\n" +
+           "Create 4-7 criteria. Total maxScore should be 10.\n\n" +
+           "Assignment description:\n" + assignmentDescription;
+
+    // ── Request/response helpers ─────────────────────────────────────────────
+
+    private GeminiProviderOptions ValidateAndGetOptions()
+    {
+        var gemini = _options.Gemini;
+        if (string.IsNullOrWhiteSpace(gemini.ApiKey))
+            throw new InfrastructureException("AI_CONFIGURATION_INVALID", "Gemini ApiKey is missing.");
+        if (string.IsNullOrWhiteSpace(gemini.Model))
+            throw new InfrastructureException("AI_CONFIGURATION_INVALID", "Gemini Model is missing.");
+        return gemini;
+    }
+
+    private static Uri BuildUri(GeminiProviderOptions opts)
+    {
+        var baseUrl = string.IsNullOrWhiteSpace(opts.BaseUrl)
+            ? "https://generativelanguage.googleapis.com"
+            : opts.BaseUrl.TrimEnd('/');
+        var url = $"{baseUrl}/v1beta/models/{Uri.EscapeDataString(opts.Model)}:generateContent?key={Uri.EscapeDataString(opts.ApiKey)}";
+        return new Uri(url);
+    }
+
+    private static object BuildRequestBody(string prompt, double temperature) => new
+    {
+        contents = new[] { new { role = "user", parts = new[] { new { text = prompt } } } },
+        generationConfig = new { temperature = Math.Clamp(temperature, 0, 2), responseMimeType = "application/json" }
+    };
+
+    private static string ExtractText(string geminiResponseJson)
+    {
+        using var doc = JsonDocument.Parse(geminiResponseJson);
+        var candidates = doc.RootElement.GetProperty("candidates");
+        foreach (var c in candidates.EnumerateArray())
+            if (c.TryGetProperty("content", out var content) &&
+                content.TryGetProperty("parts", out var parts))
+                foreach (var p in parts.EnumerateArray())
+                    if (p.TryGetProperty("text", out var t) && t.ValueKind == JsonValueKind.String)
+                        return StripFence(t.GetString()!.Trim());
+
+        throw new InfrastructureException("AI_RESPONSE_INVALID", "Gemini response has no text.");
+    }
+
+    private static string StripFence(string text)
+    {
+        if (!text.StartsWith("```", StringComparison.Ordinal)) return text;
+        var nl = text.IndexOf('\n');
+        var last = text.LastIndexOf("```", StringComparison.Ordinal);
+        return (nl >= 0 && last > nl) ? text[(nl + 1)..last].Trim() : text;
+    }
+
+    private static IReadOnlyList<RubricScoreDto> ParseScores(string json, IReadOnlyList<RubricCriteriaDto> criteria)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var map = criteria.ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
+        var result = new List<RubricScoreDto>(criteria.Count);
+
+        if (doc.RootElement.TryGetProperty("scores", out var scores))
+            foreach (var s in scores.EnumerateArray())
             {
-                return StripCodeFence(text.Trim());
-            }
-        }
+                var name    = s.TryGetProperty("criteriaName", out var n) ? n.GetString() ?? "" : "";
+                var score   = s.TryGetProperty("givenScore",   out var sv) && sv.TryGetDouble(out var d) ? d : 0;
+                var comment = s.TryGetProperty("comment",      out var cm) ? cm.GetString() ?? "" : "";
 
-        throw new InfrastructureException("AI_RESPONSE_INVALID", "Gemini response does not contain readable text output.");
-    }
+                if (map.TryGetValue(name, out var c))
+                    score = Math.Clamp(score, 0, c.MaxScore);
 
-    private static string? TryExtractCandidateText(JsonElement candidate)
-    {
-        if (!candidate.TryGetProperty("content", out var content) ||
-            !content.TryGetProperty("parts", out var parts) ||
-            parts.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        foreach (var part in parts.EnumerateArray())
-        {
-            if (part.ValueKind == JsonValueKind.Object &&
-                part.TryGetProperty("text", out var textElement) &&
-                textElement.ValueKind == JsonValueKind.String)
-            {
-                var text = textElement.GetString();
-                if (!string.IsNullOrWhiteSpace(text))
-                {
-                    return text;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static string? TryGetHeader(HttpResponseMessage response, string headerName)
-    {
-        if (response.Headers.TryGetValues(headerName, out var values))
-        {
-            return values.FirstOrDefault();
-        }
-
-        if (response.Content.Headers.TryGetValues(headerName, out values))
-        {
-            return values.FirstOrDefault();
-        }
-
-        return null;
-    }
-
-    private static string StripCodeFence(string text)
-    {
-        if (!text.StartsWith("```", StringComparison.Ordinal))
-        {
-            return text;
-        }
-
-        var firstNewLine = text.IndexOf('\n');
-        var lastFence = text.LastIndexOf("```", StringComparison.Ordinal);
-
-        if (firstNewLine < 0 || lastFence <= firstNewLine)
-        {
-            return text;
-        }
-
-        return text.Substring(firstNewLine + 1, lastFence - firstNewLine - 1).Trim();
-    }
-
-    private static AiGradeSubmissionResponseDto ParseGradeResponse(
-        AiGradeSubmissionRequestDto request,
-        string gradeJson)
-    {
-        using var document = JsonDocument.Parse(gradeJson);
-        var root = document.RootElement;
-
-        var aiScores = ParseScores(root, request.Criteria);
-        var feedback = ParseFeedback(root);
-
-        var totalScore = Math.Round(aiScores.Sum(x => x.Score), 2);
-
-        return new AiGradeSubmissionResponseDto(
-            request.SubmissionId,
-            totalScore,
-            aiScores,
-            feedback);
-    }
-
-    private static IReadOnlyList<AiRubricScoreDto> ParseScores(JsonElement root, IReadOnlyList<RubricCriteriaDto> criteria)
-    {
-        var criteriaMap = criteria.ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
-        var scoreMap = new Dictionary<string, AiRubricScoreDto>(StringComparer.OrdinalIgnoreCase);
-
-        if (root.TryGetProperty("scores", out var scoresElement) && scoresElement.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in scoresElement.EnumerateArray())
-            {
-                if (!item.TryGetProperty("criteriaName", out var nameElement) || nameElement.ValueKind != JsonValueKind.String)
-                {
-                    continue;
-                }
-
-                var criteriaName = nameElement.GetString();
-                if (string.IsNullOrWhiteSpace(criteriaName))
-                {
-                    continue;
-                }
-
-                var score = item.TryGetProperty("score", out var scoreElement) && scoreElement.TryGetDouble(out var parsedScore)
-                    ? parsedScore
-                    : 0;
-                var comment = item.TryGetProperty("comment", out var commentElement) && commentElement.ValueKind == JsonValueKind.String
-                    ? commentElement.GetString() ?? string.Empty
-                    : string.Empty;
-
-                if (criteriaMap.TryGetValue(criteriaName, out var criterion))
-                {
-                    score = Math.Clamp(score, 0, criterion.Weight);
-                }
-
-                scoreMap[criteriaName] = new AiRubricScoreDto(criteriaName, Math.Round(score, 2), comment);
-            }
-        }
-
-        var ordered = new List<AiRubricScoreDto>(criteria.Count);
-        foreach (var criterion in criteria)
-        {
-            if (scoreMap.TryGetValue(criterion.Name, out var existing))
-            {
-                ordered.Add(existing);
-                continue;
+                result.Add(new RubricScoreDto(name, Math.Round(score, 2), c?.MaxScore ?? 0, comment));
             }
 
-            ordered.Add(new AiRubricScoreDto(criterion.Name, 0, "No AI evaluation generated for this criterion."));
-        }
+        // Fill missing criteria with 0
+        var filled = result.Select(r => r.CriteriaName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in criteria.Where(c => !filled.Contains(c.Name)))
+            result.Add(new RubricScoreDto(c.Name, 0, c.MaxScore, "AI did not evaluate this criterion."));
 
-        return ordered;
+        return result;
     }
 
-    private static AiFeedbackDto ParseFeedback(JsonElement root)
+    private static IReadOnlyList<RubricCriteriaDto> ParseCriteria(string json)
     {
-        if (!root.TryGetProperty("feedback", out var feedbackElement) || feedbackElement.ValueKind != JsonValueKind.Object)
-        {
-            return new AiFeedbackDto(
-                "AI feedback is unavailable.",
-                new[] { "Review rubric criteria manually." });
-        }
+        using var doc = JsonDocument.Parse(json);
+        var result = new List<RubricCriteriaDto>();
 
-        var summary = feedbackElement.TryGetProperty("summary", out var summaryElement) && summaryElement.ValueKind == JsonValueKind.String
-            ? summaryElement.GetString() ?? "AI feedback is unavailable."
-            : "AI feedback is unavailable.";
-
-        var suggestions = new List<string>();
-        if (feedbackElement.TryGetProperty("suggestions", out var suggestionsElement) && suggestionsElement.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var suggestion in suggestionsElement.EnumerateArray())
+        if (doc.RootElement.TryGetProperty("criteria", out var arr))
+            foreach (var c in arr.EnumerateArray())
             {
-                if (suggestion.ValueKind == JsonValueKind.String)
-                {
-                    var value = suggestion.GetString();
-                    if (!string.IsNullOrWhiteSpace(value))
-                    {
-                        suggestions.Add(value);
-                    }
-                }
+                var name  = c.TryGetProperty("name",        out var n)  ? n.GetString()  ?? "" : "";
+                var score = c.TryGetProperty("maxScore",    out var sv) && sv.TryGetDouble(out var d) ? d : 1;
+                var desc  = c.TryGetProperty("description", out var de) ? de.GetString() ?? "" : "";
+                if (!string.IsNullOrWhiteSpace(name))
+                    result.Add(new RubricCriteriaDto(name, score, desc));
             }
-        }
 
-        if (suggestions.Count == 0)
-        {
-            suggestions.Add("Review rubric criteria manually.");
-        }
-
-        return new AiFeedbackDto(summary, suggestions);
+        return result;
     }
 }
