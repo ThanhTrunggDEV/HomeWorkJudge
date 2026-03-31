@@ -18,10 +18,13 @@ public partial class RubricEditorViewModel : ObservableObject
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isNewRubric;
 
-    // Input fields for new criteria
-    [ObservableProperty] private string _newCriteriaName = "";
-    [ObservableProperty] private double _newCriteriaMaxScore = 2.0;
-    [ObservableProperty] private string _newCriteriaDescription = "";
+    // Form fields for add/edit criteria
+    [ObservableProperty] private string _formCriteriaName = "";
+    [ObservableProperty] private double _formCriteriaMaxScore = 2.0;
+    [ObservableProperty] private string _formCriteriaDescription = "";
+
+    // true = đang sửa tiêu chí đã chọn, false = đang thêm mới
+    [ObservableProperty] private bool _isEditingCriteria;
 
     public RubricEditorViewModel(IRubricUseCase rubricUseCase, MainViewModel mainVm, Guid? rubricId)
     {
@@ -46,6 +49,24 @@ public partial class RubricEditorViewModel : ObservableObject
         finally { IsLoading = false; }
     }
 
+    // ── Chọn tiêu chí → đưa vào form sửa ──────────────────────────────────
+
+    partial void OnSelectedCriteriaChanged(RubricCriteriaDto? value)
+    {
+        if (value is null)
+        {
+            ClearForm();
+            return;
+        }
+
+        FormCriteriaName = value.Name;
+        FormCriteriaMaxScore = value.MaxScore;
+        FormCriteriaDescription = value.Description;
+        IsEditingCriteria = true;
+    }
+
+    // ── Save rubric ─────────────────────────────────────────────────────────
+
     [RelayCommand]
     private async Task SaveAsync()
     {
@@ -61,52 +82,98 @@ public partial class RubricEditorViewModel : ObservableObject
                 _rubricId = result.RubricId;
                 IsNewRubric = false;
             }
-            // Navigate back
             _mainVm.NavigateTo("Rubrics");
         }
         finally { IsLoading = false; }
     }
 
+    // ── Thêm tiêu chí ──────────────────────────────────────────────────────
+
     [RelayCommand]
     private async Task AddCriteriaAsync()
     {
-        if (string.IsNullOrWhiteSpace(NewCriteriaName)) return;
+        if (string.IsNullOrWhiteSpace(FormCriteriaName)) return;
 
         if (_rubricId.HasValue)
         {
             await _rubricUseCase.AddCriteriaAsync(new AddRubricCriteriaCommand(
-                _rubricId.Value, NewCriteriaName, NewCriteriaMaxScore, NewCriteriaDescription));
+                _rubricId.Value, FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription));
             await LoadAsync(_rubricId.Value);
         }
         else
         {
-            Criteria.Add(new RubricCriteriaDto(NewCriteriaName, NewCriteriaMaxScore, NewCriteriaDescription));
+            Criteria.Add(new RubricCriteriaDto(Guid.NewGuid(), FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription));
         }
 
-        NewCriteriaName = "";
-        NewCriteriaMaxScore = 2.0;
-        NewCriteriaDescription = "";
+        ClearForm();
     }
 
+    // ── Cập nhật tiêu chí đang chọn ─────────────────────────────────────────
+
     [RelayCommand]
-    private async Task RemoveCriteriaAsync(RubricCriteriaDto? criteria)
+    private async Task UpdateCriteriaAsync()
     {
-        if (criteria is null) return;
+        if (SelectedCriteria is null || string.IsNullOrWhiteSpace(FormCriteriaName)) return;
 
         if (_rubricId.HasValue)
         {
-            // Need criteria ID — for now remove from local list
-            Criteria.Remove(criteria);
+            await _rubricUseCase.UpdateCriteriaAsync(new UpdateRubricCriteriaCommand(
+                _rubricId.Value, SelectedCriteria.Id, FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription));
+            await LoadAsync(_rubricId.Value);
         }
         else
         {
-            Criteria.Remove(criteria);
+            // Local edit: thay thế object trong list
+            var idx = Criteria.IndexOf(SelectedCriteria);
+            if (idx >= 0)
+                Criteria[idx] = new RubricCriteriaDto(SelectedCriteria.Id, FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription);
         }
+
+        ClearForm();
+    }
+
+    // ── Xoá tiêu chí ────────────────────────────────────────────────────────
+
+    [RelayCommand]
+    private async Task RemoveCriteriaAsync()
+    {
+        if (SelectedCriteria is null) return;
+
+        if (_rubricId.HasValue)
+        {
+            await _rubricUseCase.RemoveCriteriaAsync(
+                new RemoveRubricCriteriaCommand(_rubricId.Value, SelectedCriteria.Id));
+            await LoadAsync(_rubricId.Value);
+        }
+        else
+        {
+            Criteria.Remove(SelectedCriteria);
+        }
+
+        ClearForm();
+    }
+
+    // ── Huỷ chỉnh sửa ──────────────────────────────────────────────────────
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        SelectedCriteria = null;
+        ClearForm();
     }
 
     [RelayCommand]
     private void GoBack()
     {
         _mainVm.NavigateTo("Rubrics");
+    }
+
+    private void ClearForm()
+    {
+        FormCriteriaName = "";
+        FormCriteriaMaxScore = 2.0;
+        FormCriteriaDescription = "";
+        IsEditingCriteria = false;
+        SelectedCriteria = null;
     }
 }

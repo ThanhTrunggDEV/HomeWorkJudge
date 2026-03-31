@@ -16,6 +16,11 @@ public partial class RubricListViewModel : ObservableObject
     [ObservableProperty] private RubricSummaryDto? _selectedRubric;
     [ObservableProperty] private bool _isLoading;
 
+    // AI Generation inputs
+    [ObservableProperty] private string _aiRubricName = "";
+    [ObservableProperty] private string _aiDescription = "";
+    [ObservableProperty] private bool _showAiPanel;
+
     public RubricListViewModel(IRubricUseCase rubricUseCase, MainViewModel mainVm)
     {
         _rubricUseCase = rubricUseCase;
@@ -74,13 +79,23 @@ public partial class RubricListViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task GenerateByAiAsync(string? description)
+    private void ToggleAiPanel()
     {
-        if (string.IsNullOrWhiteSpace(description)) return;
+        ShowAiPanel = !ShowAiPanel;
+    }
+
+    [RelayCommand]
+    private async Task GenerateByAiAsync()
+    {
+        if (string.IsNullOrWhiteSpace(AiDescription)) return;
+        var name = string.IsNullOrWhiteSpace(AiRubricName) ? "AI Generated Rubric" : AiRubricName;
         IsLoading = true;
         try
         {
-            await _rubricUseCase.GenerateByAiAsync(new GenerateRubricCommand(description, "AI Generated Rubric"));
+            await _rubricUseCase.GenerateByAiAsync(new GenerateRubricCommand(AiDescription, name));
+            AiDescription = "";
+            AiRubricName = "";
+            ShowAiPanel = false;
             await LoadAsync();
         }
         finally { IsLoading = false; }

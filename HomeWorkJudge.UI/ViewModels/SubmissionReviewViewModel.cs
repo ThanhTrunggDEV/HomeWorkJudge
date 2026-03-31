@@ -27,6 +27,11 @@ public partial class SubmissionReviewViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<SourceFileDto> _sourceFiles = [];
     [ObservableProperty] private SourceFileDto? _selectedFile;
     [ObservableProperty] private string _currentFileContent = "";
+    [ObservableProperty] private ObservableCollection<FileTreeNode> _fileTree = [];
+    [ObservableProperty] private bool _isFileTreeVisible = true;
+
+    [RelayCommand]
+    private void ToggleFileTree() => IsFileTreeVisible = !IsFileTreeVisible;
 
     [ObservableProperty] private ObservableCollection<RubricResultDto> _rubricResults = [];
     [ObservableProperty] private bool _isLoading;
@@ -40,6 +45,14 @@ public partial class SubmissionReviewViewModel : ObservableObject
     public bool HasPrev => _currentIndex > 0;
     public bool HasNext => _currentIndex < _allSubmissionIds.Count - 1;
     public string NavigationInfo => $"{_currentIndex + 1} / {_allSubmissionIds.Count}";
+    public bool CanApprove => Status == "AIGraded";
+    public bool CanOverride => Status is "AIGraded" or "Reviewed";
+
+    partial void OnStatusChanged(string value)
+    {
+        OnPropertyChanged(nameof(CanApprove));
+        OnPropertyChanged(nameof(CanOverride));
+    }
 
     public SubmissionReviewViewModel(IGradingUseCase gradingUseCase)
     {
@@ -70,13 +83,16 @@ public partial class SubmissionReviewViewModel : ObservableObject
             ErrorMessage = detail.ErrorMessage;
             IsPlagiarismSuspected = detail.IsPlagiarismSuspected;
             SourceFiles = new ObservableCollection<SourceFileDto>(detail.SourceFiles);
+            FileTree = FileTreeNode.Build(detail.SourceFiles);
             RubricResults = new ObservableCollection<RubricResultDto>(detail.RubricResults);
             OverrideTotalScore = detail.TotalScore;
 
-            if (SourceFiles.Count > 0)
+            // Chọn file đầu tiên (leaf đầu tiên trong cây)
+            var firstFile = detail.SourceFiles.FirstOrDefault();
+            if (firstFile is not null)
             {
-                SelectedFile = SourceFiles[0];
-                CurrentFileContent = SelectedFile.Content;
+                SelectedFile = firstFile;
+                CurrentFileContent = firstFile.Content;
             }
 
             OnPropertyChanged(nameof(HasPrev));
@@ -91,7 +107,16 @@ public partial class SubmissionReviewViewModel : ObservableObject
         CurrentFileContent = value?.Content ?? "";
     }
 
+    /// <summary>Được gọi khi user click vào file node trong TreeView.</summary>
     [RelayCommand]
+    private void SelectFileNode(FileTreeNode? node)
+    {
+        if (node is null || node.IsFolder || node.File is null) return;
+        SelectedFile = node.File;
+        CurrentFileContent = node.File.Content;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanApprove))]
     private async Task ApproveAsync()
     {
         await _gradingUseCase.ApproveAsync(new ApproveSubmissionCommand(_submissionId));

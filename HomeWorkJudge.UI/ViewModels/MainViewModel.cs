@@ -14,10 +14,21 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private object? _currentView;
 
+    [ObservableProperty]
+    private bool _isSidebarCollapsed;
+
+    [RelayCommand]
+    private void ToggleSidebar() => IsSidebarCollapsed = !IsSidebarCollapsed;
+
     public MainViewModel(IServiceProvider sp)
     {
         _sp = sp;
-        NavigateTo("Rubrics");
+    }
+
+    public void Initialize()
+    {
+        if (CurrentView is null)
+            NavigateTo(CurrentPage);
     }
 
     [RelayCommand]

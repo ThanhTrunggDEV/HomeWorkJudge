@@ -14,6 +14,7 @@ public partial class SessionCreateViewModel : ObservableObject
     private readonly IGradingSessionUseCase _sessionUseCase;
     private readonly IRubricUseCase _rubricUseCase;
     private readonly MainViewModel _mainVm;
+    private readonly IServiceProvider _sp;
 
     [ObservableProperty] private string _sessionName = "";
     [ObservableProperty] private ObservableCollection<RubricSummaryDto> _rubrics = [];
@@ -25,11 +26,13 @@ public partial class SessionCreateViewModel : ObservableObject
     public SessionCreateViewModel(
         IGradingSessionUseCase sessionUseCase,
         IRubricUseCase rubricUseCase,
-        MainViewModel mainVm)
+        MainViewModel mainVm,
+        IServiceProvider sp)
     {
         _sessionUseCase = sessionUseCase;
         _rubricUseCase = rubricUseCase;
         _mainVm = mainVm;
+        _sp = sp;
         _ = LoadRubricsAsync();
     }
 
@@ -69,7 +72,14 @@ public partial class SessionCreateViewModel : ObservableObject
                 SelectedFiles.ToList());
 
             var result = await _sessionUseCase.CreateAsync(command);
-            ResultMessage = $"Tạo phiên thành công! Import: {result.ImportedCount} bài, bỏ qua: {result.SkippedCount} file.";
+
+            // Chuyển hướng đến Grading Dashboard
+            var dashboardVm = _sp.GetService(typeof(GradingDashboardViewModel)) as GradingDashboardViewModel;
+            if (dashboardVm is not null)
+            {
+                dashboardVm.Initialize(result.SessionId, SessionName.Trim());
+                _mainVm.NavigateToViewModel(dashboardVm);
+            }
         }
         catch (Exception ex)
         {
