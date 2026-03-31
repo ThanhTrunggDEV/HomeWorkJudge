@@ -23,6 +23,7 @@ public partial class SubmissionReviewViewModel : ObservableObject
     [ObservableProperty] private double _totalScore;
     [ObservableProperty] private string? _teacherNote;
     [ObservableProperty] private string? _errorMessage;
+    [ObservableProperty] private string? _buildLog;
     [ObservableProperty] private bool _isPlagiarismSuspected;
 
     [ObservableProperty] private ObservableCollection<SourceFileDto> _sourceFiles = [];
@@ -48,11 +49,13 @@ public partial class SubmissionReviewViewModel : ObservableObject
     public string NavigationInfo => $"{_currentIndex + 1} / {_allSubmissionIds.Count}";
     public bool CanApprove => Status == "AIGraded";
     public bool CanOverride => Status is "AIGraded" or "Reviewed";
+    public bool IsBuildFailed => Status == "BuildFailed";
 
     partial void OnStatusChanged(string value)
     {
         OnPropertyChanged(nameof(CanApprove));
         OnPropertyChanged(nameof(CanOverride));
+        OnPropertyChanged(nameof(IsBuildFailed));
     }
 
     public SubmissionReviewViewModel(IGradingUseCase gradingUseCase)
@@ -82,6 +85,7 @@ public partial class SubmissionReviewViewModel : ObservableObject
             TotalScore = detail.TotalScore;
             TeacherNote = detail.TeacherNote;
             ErrorMessage = detail.ErrorMessage;
+            BuildLog = detail.BuildLog;
             IsPlagiarismSuspected = detail.IsPlagiarismSuspected;
             SourceFiles = new ObservableCollection<SourceFileDto>(detail.SourceFiles);
             FileTree = FileTreeNode.Build(detail.SourceFiles);

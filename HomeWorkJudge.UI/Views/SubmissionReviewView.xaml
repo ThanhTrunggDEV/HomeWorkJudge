@@ -205,7 +205,39 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Error message -->
+                    <!-- Build Failed banner -->
+                    <Border Style="{StaticResource ContentCard}"
+                            Visibility="{Binding IsBuildFailed, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Background="#3AEF5350">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,8">
+                                <materialDesign:PackIcon Kind="HammerWrench" Width="22" Height="22"
+                                                         Foreground="{StaticResource StatusErrorBrush}"
+                                                         VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="❌ Build thất bại — 0 điểm"
+                                           FontWeight="SemiBold" FontSize="14"
+                                           Foreground="{StaticResource StatusErrorBrush}"
+                                           VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <Expander Header="🔨 Xem Build Output" Background="Transparent">
+                                <Border Background="#CC1A1A2E" CornerRadius="6" Margin="0,6,0,0" Padding="8">
+                                    <TextBox Text="{Binding BuildLog, Mode=OneWay}"
+                                             IsReadOnly="True"
+                                             Background="Transparent"
+                                             Foreground="#E0E0E0"
+                                             FontFamily="Cascadia Code, Consolas, monospace"
+                                             FontSize="11"
+                                             BorderThickness="0"
+                                             TextWrapping="Wrap"
+                                             AcceptsReturn="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             MaxHeight="300"/>
+                                </Border>
+                            </Expander>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Error message (AI error) -->
                     <Border Style="{StaticResource ContentCard}"
                             Visibility="{Binding ErrorMessage, Converter={StaticResource NullableToVisibilityConverter}, FallbackValue=Collapsed}"
                             Background="#3AEF5350">

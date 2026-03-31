@@ -110,6 +110,9 @@ public partial class App : System.Windows.Application
             var db = _host.Services.GetRequiredService<AppDbContext>();
             await db.Database.EnsureCreatedAsync(startupCts.Token);
 
+            // Schema migration: thêm cột mới nếu chưa tồn tại (tương thích với DB cũ)
+            await ApplySchemaMigrationsAsync(db, startupCts.Token);
+
             // Restore saved theme preference
             var config = _host.Services.GetRequiredService<IConfiguration>();
             if (bool.TryParse(config["UI:DarkMode"], out var isDark))
@@ -203,6 +206,15 @@ public partial class App : System.Windows.Application
             MessageBoxButton.OK,
             MessageBoxImage.Error);
         e.SetObserved();
+    }
+
+    /// <summary>
+    /// Áp dụng các thay đổi schema thủ công cho DB đã tồn tại trước đây.
+    /// An toàn khi chạy nhiều lần (idempotent) — bỏ qua lỗi khi cột đã tồn tại.
+    /// </summary>
+    private static async Task ApplySchemaMigrationsAsync(SqliteDataAccess.AppDbContext db, CancellationToken ct)
+    {
+        await db.ApplySchemaMigrationsAsync(ct);
     }
 
     private static void AppendErrorLog(string phase, Exception? ex)
