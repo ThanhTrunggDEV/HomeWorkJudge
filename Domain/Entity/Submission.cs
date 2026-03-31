@@ -107,9 +107,12 @@ public class Submission : EntityBase
 
     // ── Review / Override ────────────────────────────────────────────────────
 
-    /// <summary>GV duyệt điểm AI, giữ nguyên. Guard: chỉ từ AIGraded.</summary>
+    /// <summary>GV duyệt điểm AI. Guard: chỉ từ AIGraded (idempotent nếu đã Reviewed).</summary>
     public void Approve()
     {
+        if (Status == SubmissionStatus.Reviewed)
+            return; // Idempotent — đã duyệt rồi
+
         if (Status != SubmissionStatus.AIGraded)
             throw new DomainException(
                 $"Chỉ duyệt được bài ở trạng thái AIGraded, hiện đang '{Status}'.");

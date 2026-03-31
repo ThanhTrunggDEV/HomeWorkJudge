@@ -50,6 +50,12 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.RubricId).IsRequired();
             e.Property(x => x.CreatedAt).IsRequired();
             e.HasIndex(x => x.RubricId);
+
+            // Cascade: xoá session → xoá tất cả submissions
+            e.HasMany<SubmissionRecord>()
+             .WithOne()
+             .HasForeignKey(x => x.SessionId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── Submission ────────────────────────────────────────────────────────

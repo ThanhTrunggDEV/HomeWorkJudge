@@ -54,6 +54,7 @@ public sealed record RubricCriteriaInputDto(
 );
 
 public sealed record RubricCriteriaDto(
+    Guid Id,
     string Name,
     double MaxScore,
     string Description

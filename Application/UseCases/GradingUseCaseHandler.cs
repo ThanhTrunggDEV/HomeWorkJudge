@@ -57,7 +57,7 @@ public sealed class GradingUseCaseHandler : IGradingUseCase
         if (pendingSubmissions.Count == 0)
             return new StartGradingResult(0);
 
-        var criteriaDto = rubric.Criteria.Select(c => new Ports.DTO.Rubric.RubricCriteriaDto(c.Name, c.MaxScore, c.Description)).ToList();
+        var criteriaDto = rubric.Criteria.Select(c => new Ports.DTO.Rubric.RubricCriteriaDto(c.Id.Value, c.Name, c.MaxScore, c.Description)).ToList();
 
         int started = 0;
         foreach (var submission in pendingSubmissions)
@@ -80,7 +80,7 @@ public sealed class GradingUseCaseHandler : IGradingUseCase
         var rubric = await _rubricRepo.GetByIdAsync(session.RubricId, ct)
             ?? throw new DomainException("Không tìm thấy Rubric của phiên chấm.");
 
-        var criteriaDto = rubric.Criteria.Select(c => new Ports.DTO.Rubric.RubricCriteriaDto(c.Name, c.MaxScore, c.Description)).ToList();
+        var criteriaDto = rubric.Criteria.Select(c => new Ports.DTO.Rubric.RubricCriteriaDto(c.Id.Value, c.Name, c.MaxScore, c.Description)).ToList();
         await GradeOneAsync(submission, criteriaDto, ct);
     }
 
@@ -94,7 +94,7 @@ public sealed class GradingUseCaseHandler : IGradingUseCase
             ?? throw new DomainException("Không tìm thấy Rubric.");
 
         var allSubs = await _submissionRepo.GetBySessionIdAsync(session.Id, ct);
-        var criteriaDto = rubric.Criteria.Select(c => new Ports.DTO.Rubric.RubricCriteriaDto(c.Name, c.MaxScore, c.Description)).ToList();
+        var criteriaDto = rubric.Criteria.Select(c => new Ports.DTO.Rubric.RubricCriteriaDto(c.Id.Value, c.Name, c.MaxScore, c.Description)).ToList();
 
         foreach (var submission in allSubs)
         {

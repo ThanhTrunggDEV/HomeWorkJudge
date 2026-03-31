@@ -13,14 +13,14 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         // Domain Event Dispatcher
-        services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
-        services.AddScoped<DomainEventDispatcher>();
+        services.AddTransient<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.AddTransient<DomainEventDispatcher>();
 
         // Use Case Handlers
-        services.AddScoped<IRubricUseCase, RubricUseCaseHandler>();
-        services.AddScoped<IGradingSessionUseCase, GradingSessionUseCaseHandler>();
-        services.AddScoped<IGradingUseCase, GradingUseCaseHandler>();
-        services.AddScoped<IReportUseCase, ReportUseCaseHandler>();
+        services.AddTransient<IRubricUseCase, RubricUseCaseHandler>();
+        services.AddTransient<IGradingSessionUseCase, GradingSessionUseCaseHandler>();
+        services.AddTransient<IGradingUseCase, GradingUseCaseHandler>();
+        services.AddTransient<IReportUseCase, ReportUseCaseHandler>();
 
         return services;
     }

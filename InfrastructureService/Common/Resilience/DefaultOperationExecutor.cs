@@ -46,6 +46,7 @@ public sealed class DefaultOperationExecutor : IOperationExecutor
         var maxAttempts = Math.Max(1, _options.DefaultRetryCount + 1);
         var timeout = TimeSpan.FromSeconds(Math.Max(1, _options.DefaultTimeoutSeconds));
         var retryDelay = TimeSpan.FromMilliseconds(Math.Max(1, _options.RetryDelayMilliseconds));
+        Exception? lastException = null;
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -56,8 +57,9 @@ public sealed class DefaultOperationExecutor : IOperationExecutor
             {
                 return await action(linkedCts.Token);
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && attempt < maxAttempts)
+            catch (OperationCanceledException oce) when (!cancellationToken.IsCancellationRequested && attempt < maxAttempts)
             {
+                lastException = oce;
                 _logger.LogWarning(
                     "Operation {OperationName} timed out on attempt {Attempt}/{MaxAttempts}.",
                     operationName,
@@ -66,6 +68,7 @@ public sealed class DefaultOperationExecutor : IOperationExecutor
             }
             catch (Exception ex) when (attempt < maxAttempts)
             {
+                lastException = ex;
                 _logger.LogWarning(
                     ex,
                     "Operation {OperationName} failed on attempt {Attempt}/{MaxAttempts}. Retrying.",
@@ -77,6 +80,7 @@ public sealed class DefaultOperationExecutor : IOperationExecutor
             await Task.Delay(retryDelay, cancellationToken);
         }
 
-        throw new TimeoutException($"Operation '{operationName}' failed after retries.");
+        throw new InvalidOperationException(
+            $"Operation '{operationName}' failed after {maxAttempts} attempt(s).", lastException);
     }
 }

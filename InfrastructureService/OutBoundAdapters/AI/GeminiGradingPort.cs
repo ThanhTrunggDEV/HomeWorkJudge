@@ -194,10 +194,12 @@ public sealed class GeminiGradingPort : IAiGradingPort
                 var score   = s.TryGetProperty("givenScore",   out var sv) && sv.TryGetDouble(out var d) ? d : 0;
                 var comment = s.TryGetProperty("comment",      out var cm) ? cm.GetString() ?? "" : "";
 
-                if (map.TryGetValue(name, out var c))
-                    score = Math.Clamp(score, 0, c.MaxScore);
+                // Chỉ chấp nhận tiêu chí thuộc rubric — bỏ qua hallucinated criteria
+                if (!map.TryGetValue(name, out var c))
+                    continue;
 
-                result.Add(new RubricScoreDto(name, Math.Round(score, 2), c?.MaxScore ?? 0, comment));
+                score = Math.Clamp(score, 0, c.MaxScore);
+                result.Add(new RubricScoreDto(name, Math.Round(score, 2), c.MaxScore, comment));
             }
 
         // Fill missing criteria with 0
@@ -220,7 +222,7 @@ public sealed class GeminiGradingPort : IAiGradingPort
                 var score = c.TryGetProperty("maxScore",    out var sv) && sv.TryGetDouble(out var d) ? d : 1;
                 var desc  = c.TryGetProperty("description", out var de) ? de.GetString() ?? "" : "";
                 if (!string.IsNullOrWhiteSpace(name))
-                    result.Add(new RubricCriteriaDto(name, score, desc));
+                    result.Add(new RubricCriteriaDto(Guid.Empty, name, score, desc));
             }
 
         return result;

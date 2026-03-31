@@ -30,8 +30,8 @@ public sealed class ReportExportPort : IReportExportPort
 
         return format switch
         {
-            ExportFormat.Csv   => Task.FromResult(BuildCsv(sessionId, submissions)),
-            ExportFormat.Excel => Task.FromResult(BuildXlsx(sessionId, submissions)),
+            ExportFormat.Csv   => Task.FromResult(BuildCsv(sessionId, submissions, includeCriteriaDetail)),
+            ExportFormat.Excel => Task.FromResult(BuildXlsx(sessionId, submissions, includeCriteriaDetail)),
             _                  => throw new InfrastructureException("REPORT_UNSUPPORTED_FORMAT",
                                       $"Format '{format}' không được hỗ trợ.")
         };
@@ -39,7 +39,7 @@ public sealed class ReportExportPort : IReportExportPort
 
     // ── CSV ──────────────────────────────────────────────────────────────────
 
-    private static ExportScoreResult BuildCsv(Guid sessionId, IReadOnlyList<SubmissionSummaryDto> items)
+    private static ExportScoreResult BuildCsv(Guid sessionId, IReadOnlyList<SubmissionSummaryDto> items, bool includeCriteriaDetail)
     {
         var sb = new StringBuilder();
         sb.AppendLine("StudentIdentifier,TotalScore,Status,IsPlagiarismSuspected,ImportedAt");
@@ -60,7 +60,8 @@ public sealed class ReportExportPort : IReportExportPort
 
     // ── Excel ────────────────────────────────────────────────────────────────
 
-    private static ExportScoreResult BuildXlsx(Guid sessionId, IReadOnlyList<SubmissionSummaryDto> items)
+    // TODO: Khi includeCriteriaDetail = true, cần truyền SubmissionDetailDto thay vì Summary để có RubricResults
+    private static ExportScoreResult BuildXlsx(Guid sessionId, IReadOnlyList<SubmissionSummaryDto> items, bool includeCriteriaDetail)
     {
         using var workbook = new XLWorkbook();
         var sheet = workbook.Worksheets.Add("Scores");

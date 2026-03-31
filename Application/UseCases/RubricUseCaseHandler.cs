@@ -128,7 +128,7 @@ public sealed class RubricUseCaseHandler : IRubricUseCase
             Id: rubric.Id.Value,
             Name: rubric.Name,
             CreatedAt: rubric.CreatedAt,
-            Criteria: rubric.Criteria.Select(c => new RubricCriteriaDto(c.Name, c.MaxScore, c.Description)).ToList()
+            Criteria: rubric.Criteria.Select(c => new RubricCriteriaDto(c.Id.Value, c.Name, c.MaxScore, c.Description)).ToList()
         );
     }
 

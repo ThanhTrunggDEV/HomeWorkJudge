@@ -29,17 +29,17 @@ public static class ServiceCollectionExtensions
 
         // AI adapters
         services.AddHttpClient<GeminiGradingPort>();
-        services.AddScoped<IAiGradingPort, GeminiGradingPort>();
-        services.AddScoped<IAiRubricGeneratorPort, GeminiRubricGeneratorPort>();
+        services.AddTransient<IAiGradingPort, GeminiGradingPort>();
+        services.AddTransient<IAiRubricGeneratorPort, GeminiRubricGeneratorPort>();
 
         // Plagiarism
-        services.AddScoped<IPlagiarismDetectionPort, LocalPlagiarismDetectionPort>();
+        services.AddTransient<IPlagiarismDetectionPort, LocalPlagiarismDetectionPort>();
 
         // File extraction (zip/rar)
-        services.AddScoped<IFileExtractorPort, ZipFileExtractorPort>();
+        services.AddTransient<IFileExtractorPort, ZipFileExtractorPort>();
 
         // Report export (CSV/XLSX)
-        services.AddScoped<IReportExportPort, ReportExportPort>();
+        services.AddTransient<IReportExportPort, ReportExportPort>();
 
         return services;
     }
