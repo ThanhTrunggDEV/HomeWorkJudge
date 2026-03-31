@@ -1,5 +1,6 @@
 using Domain.Entity;
 using Domain.ValueObject;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SqliteDataAccess;
 using SqliteDataAccess.Repository;
@@ -83,6 +84,81 @@ public class SqliteRepositoryIntegrationTests
 
         var aiGraded = await submissionRepo.GetByStatusAsync(new GradingSessionId(sessionId), SubmissionStatus.AIGraded);
         Assert.Single(aiGraded);
+    }
+
+    [Fact]
+    public async Task SubmissionRepository_UpdateBuildFailed_ShouldPersistBuildLog()
+    {
+        await using var testDb = CreateDbContext();
+        var db = testDb.Context;
+        var sessionRepo = new SqliteGradingSessionRepository(db);
+        var submissionRepo = new SqliteSubmissionRepository(db);
+        var uow = new SqliteUnitOfWork(db);
+
+        var sessionId = Guid.NewGuid();
+        var session = new GradingSession(
+            new GradingSessionId(sessionId),
+            "Session Build",
+            new RubricId(Guid.NewGuid()));
+
+        await sessionRepo.AddAsync(session);
+        await uow.SaveChangesAsync();
+
+        var submissionId = Guid.NewGuid();
+        var submission = new Submission(
+            new SubmissionId(submissionId),
+            new GradingSessionId(sessionId),
+            "SV-BUILD",
+            [new SourceFile("Program.cs", "broken")]);
+
+        await submissionRepo.AddRangeAsync([submission]);
+        await uow.SaveChangesAsync();
+
+        submission.StartGrading();
+        submission.MarkBuildFailed("error CS0246");
+        Assert.Equal("error CS0246", submission.BuildLog);
+
+        await submissionRepo.UpdateAsync(submission);
+        await uow.SaveChangesAsync();
+
+        db.ChangeTracker.Clear();
+
+        var reloaded = await submissionRepo.GetByIdAsync(new SubmissionId(submissionId));
+
+        Assert.NotNull(reloaded);
+        Assert.Equal(SubmissionStatus.BuildFailed, reloaded!.Status);
+        Assert.Equal("error CS0246", reloaded.BuildLog);
+        Assert.Equal(0, reloaded.TotalScore);
+    }
+
+    [Fact]
+    public async Task AppDbContext_ApplySchemaMigrationsAsync_ShouldBeIdempotent()
+    {
+        await using var testDb = CreateDbContext();
+        var db = testDb.Context;
+
+        await db.ApplySchemaMigrationsAsync();
+        await db.ApplySchemaMigrationsAsync();
+
+        await using var conn = new SqliteConnection(db.Database.GetConnectionString());
+        await conn.OpenAsync();
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "PRAGMA table_info(Submissions);";
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var hasBuildLog = false;
+        while (await reader.ReadAsync())
+        {
+            var columnName = reader.GetString(1);
+            if (string.Equals(columnName, "BuildLog", StringComparison.OrdinalIgnoreCase))
+            {
+                hasBuildLog = true;
+                break;
+            }
+        }
+
+        Assert.True(hasBuildLog);
     }
 
     [Fact]

@@ -114,12 +114,33 @@ public class SubmissionReviewViewModelTests
         Assert.Equal("1 / 2", vm.NavigationInfo);
     }
 
-    private static Mock<IGradingUseCase> CreateGradingUseCaseForSubmission(Guid submissionId, string student, string status)
+    [Fact]
+    public async Task Initialize_WhenBuildFailed_ShouldExposeBuildFailedStateAndBuildLog()
+    {
+        var submissionId = Guid.NewGuid();
+        var buildLog = "error CS1002: ; expected";
+        var gradingUseCase = CreateGradingUseCaseForSubmission(submissionId, "SV003", "BuildFailed", buildLog);
+
+        var vm = CreateReviewVm(gradingUseCase.Object, out var mainVm, out var dashboardVm);
+
+        vm.Initialize(submissionId, [submissionId], mainVm, dashboardVm);
+        await WaitForAsync(() => !vm.IsLoading && vm.Status == "BuildFailed");
+
+        Assert.True(vm.IsBuildFailed);
+        Assert.False(vm.CanApprove);
+        Assert.Equal(buildLog, vm.BuildLog);
+    }
+
+    private static Mock<IGradingUseCase> CreateGradingUseCaseForSubmission(
+        Guid submissionId,
+        string student,
+        string status,
+        string? buildLog = null)
     {
         var mock = new Mock<IGradingUseCase>();
         mock
             .Setup(x => x.GetSubmissionDetailAsync(submissionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateDetail(submissionId, student, status));
+            .ReturnsAsync(CreateDetail(submissionId, student, status, buildLog));
         mock
             .Setup(x => x.ApproveAsync(It.IsAny<ApproveSubmissionCommand>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -129,7 +150,7 @@ public class SubmissionReviewViewModelTests
         return mock;
     }
 
-    private static SubmissionDetailDto CreateDetail(Guid id, string student, string status)
+    private static SubmissionDetailDto CreateDetail(Guid id, string student, string status, string? buildLog = null)
         => new(
             SubmissionId: id,
             StudentIdentifier: student,
@@ -143,7 +164,8 @@ public class SubmissionReviewViewModelTests
             RubricResults: [new RubricResultDto("Correctness", 7, 10, "ok")],
             IsPlagiarismSuspected: false,
             TeacherNote: null,
-            ErrorMessage: null
+            ErrorMessage: null,
+            BuildLog: buildLog
         );
 
     private static HomeWorkJudge.UI.ViewModels.SubmissionReviewViewModel CreateReviewVm(
