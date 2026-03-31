@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Net.Http;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Ports.DTO.Grading;
@@ -99,6 +100,7 @@ public partial class SubmissionReviewViewModel : ObservableObject
             OnPropertyChanged(nameof(HasNext));
             OnPropertyChanged(nameof(NavigationInfo));
         }
+        catch (Exception ex) { ErrorMessage = $"Không thể tải bài nộp: {ex.Message}"; }
         finally { IsLoading = false; }
     }
 
@@ -119,43 +121,76 @@ public partial class SubmissionReviewViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanApprove))]
     private async Task ApproveAsync()
     {
-        await _gradingUseCase.ApproveAsync(new ApproveSubmissionCommand(_submissionId));
-        await LoadAsync();
+        ErrorMessage = null;
+        IsLoading = true;
+        try
+        {
+            await _gradingUseCase.ApproveAsync(new ApproveSubmissionCommand(_submissionId));
+            await LoadAsync();
+        }
+        catch (Domain.Exception.DomainException ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex) { ErrorMessage = $"Không thể duyệt: {ex.Message}"; }
+        finally { IsLoading = false; }
     }
 
     [RelayCommand]
     private async Task OverrideCriteriaAsync()
     {
         if (string.IsNullOrWhiteSpace(OverrideCriteriaName)) return;
-        await _gradingUseCase.OverrideCriteriaScoreAsync(
-            new OverrideCriteriaScoreCommand(_submissionId, OverrideCriteriaName, OverrideScore, OverrideComment));
-        await LoadAsync();
+        ErrorMessage = null;
+        IsLoading = true;
+        try
+        {
+            await _gradingUseCase.OverrideCriteriaScoreAsync(
+                new OverrideCriteriaScoreCommand(_submissionId, OverrideCriteriaName, OverrideScore, OverrideComment));
+            await LoadAsync();
+        }
+        catch (Domain.Exception.DomainException ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex) { ErrorMessage = $"Không thể ghi đè tiêu chí: {ex.Message}"; }
+        finally { IsLoading = false; }
     }
 
     [RelayCommand]
     private async Task OverrideTotalAsync()
     {
-        await _gradingUseCase.OverrideTotalScoreAsync(
-            new OverrideTotalScoreCommand(_submissionId, OverrideTotalScore));
-        await LoadAsync();
+        ErrorMessage = null;
+        IsLoading = true;
+        try
+        {
+            await _gradingUseCase.OverrideTotalScoreAsync(
+                new OverrideTotalScoreCommand(_submissionId, OverrideTotalScore));
+            await LoadAsync();
+        }
+        catch (Domain.Exception.DomainException ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex) { ErrorMessage = $"Không thể ghi đè tổng điểm: {ex.Message}"; }
+        finally { IsLoading = false; }
     }
 
     [RelayCommand]
     private async Task SaveTeacherNoteAsync()
     {
-        await _gradingUseCase.AddTeacherNoteAsync(
-            new AddTeacherNoteCommand(_submissionId, TeacherNote));
+        ErrorMessage = null;
+        try
+        {
+            await _gradingUseCase.AddTeacherNoteAsync(
+                new AddTeacherNoteCommand(_submissionId, TeacherNote));
+        }
+        catch (Exception ex) { ErrorMessage = $"Không thể lưu ghi chú: {ex.Message}"; }
     }
 
     [RelayCommand]
     private async Task RegradeAsync()
     {
+        ErrorMessage = null;
         IsLoading = true;
         try
         {
             await _gradingUseCase.RegradeSubmissionAsync(new RegradeSubmissionCommand(_submissionId));
             await LoadAsync();
         }
+        catch (HttpRequestException) { ErrorMessage = "Không thể kết nối AI. Kiểm tra API key và kết nối mạng."; }
+        catch (TaskCanceledException)  { ErrorMessage = "Yêu cầu AI bị hết thời gian. Vui lòng thử lại."; }
+        catch (Exception ex)           { ErrorMessage = $"Lỗi chấm lại: {ex.Message}"; }
         finally { IsLoading = false; }
     }
 

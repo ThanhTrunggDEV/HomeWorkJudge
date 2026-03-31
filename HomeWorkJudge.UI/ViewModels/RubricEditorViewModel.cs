@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Domain.Exception;
 using Ports.DTO.Rubric;
 using Ports.InBoundPorts.Rubric;
 
@@ -17,6 +18,7 @@ public partial class RubricEditorViewModel : ObservableObject
     [ObservableProperty] private RubricCriteriaDto? _selectedCriteria;
     [ObservableProperty] private bool _isLoading;
     [ObservableProperty] private bool _isNewRubric;
+    [ObservableProperty] private string? _errorMessage;
 
     // Form fields for add/edit criteria
     [ObservableProperty] private string _formCriteriaName = "";
@@ -40,12 +42,14 @@ public partial class RubricEditorViewModel : ObservableObject
     private async Task LoadAsync(Guid id)
     {
         IsLoading = true;
+        ErrorMessage = null;
         try
         {
             var detail = await _rubricUseCase.GetByIdAsync(id);
             RubricName = detail.Name;
             Criteria = new ObservableCollection<RubricCriteriaDto>(detail.Criteria);
         }
+        catch (Exception ex) { ErrorMessage = $"Không thể tải rubric: {ex.Message}"; }
         finally { IsLoading = false; }
     }
 
@@ -53,12 +57,7 @@ public partial class RubricEditorViewModel : ObservableObject
 
     partial void OnSelectedCriteriaChanged(RubricCriteriaDto? value)
     {
-        if (value is null)
-        {
-            ClearForm();
-            return;
-        }
-
+        if (value is null) { ClearForm(); return; }
         FormCriteriaName = value.Name;
         FormCriteriaMaxScore = value.MaxScore;
         FormCriteriaDescription = value.Description;
@@ -71,8 +70,8 @@ public partial class RubricEditorViewModel : ObservableObject
     private async Task SaveAsync()
     {
         if (string.IsNullOrWhiteSpace(RubricName)) return;
-
         IsLoading = true;
+        ErrorMessage = null;
         try
         {
             if (IsNewRubric)
@@ -84,6 +83,8 @@ public partial class RubricEditorViewModel : ObservableObject
             }
             _mainVm.NavigateTo("Rubrics");
         }
+        catch (DomainException ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex)       { ErrorMessage = $"Không thể lưu rubric: {ex.Message}"; }
         finally { IsLoading = false; }
     }
 
@@ -93,19 +94,23 @@ public partial class RubricEditorViewModel : ObservableObject
     private async Task AddCriteriaAsync()
     {
         if (string.IsNullOrWhiteSpace(FormCriteriaName)) return;
-
-        if (_rubricId.HasValue)
+        ErrorMessage = null;
+        try
         {
-            await _rubricUseCase.AddCriteriaAsync(new AddRubricCriteriaCommand(
-                _rubricId.Value, FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription));
-            await LoadAsync(_rubricId.Value);
+            if (_rubricId.HasValue)
+            {
+                await _rubricUseCase.AddCriteriaAsync(new AddRubricCriteriaCommand(
+                    _rubricId.Value, FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription));
+                await LoadAsync(_rubricId.Value);
+            }
+            else
+            {
+                Criteria.Add(new RubricCriteriaDto(Guid.NewGuid(), FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription));
+            }
+            ClearForm();
         }
-        else
-        {
-            Criteria.Add(new RubricCriteriaDto(Guid.NewGuid(), FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription));
-        }
-
-        ClearForm();
+        catch (DomainException ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex)       { ErrorMessage = $"Không thể thêm tiêu chí: {ex.Message}"; }
     }
 
     // ── Cập nhật tiêu chí đang chọn ─────────────────────────────────────────
@@ -114,22 +119,25 @@ public partial class RubricEditorViewModel : ObservableObject
     private async Task UpdateCriteriaAsync()
     {
         if (SelectedCriteria is null || string.IsNullOrWhiteSpace(FormCriteriaName)) return;
-
-        if (_rubricId.HasValue)
+        ErrorMessage = null;
+        try
         {
-            await _rubricUseCase.UpdateCriteriaAsync(new UpdateRubricCriteriaCommand(
-                _rubricId.Value, SelectedCriteria.Id, FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription));
-            await LoadAsync(_rubricId.Value);
+            if (_rubricId.HasValue)
+            {
+                await _rubricUseCase.UpdateCriteriaAsync(new UpdateRubricCriteriaCommand(
+                    _rubricId.Value, SelectedCriteria.Id, FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription));
+                await LoadAsync(_rubricId.Value);
+            }
+            else
+            {
+                var idx = Criteria.IndexOf(SelectedCriteria);
+                if (idx >= 0)
+                    Criteria[idx] = new RubricCriteriaDto(SelectedCriteria.Id, FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription);
+            }
+            ClearForm();
         }
-        else
-        {
-            // Local edit: thay thế object trong list
-            var idx = Criteria.IndexOf(SelectedCriteria);
-            if (idx >= 0)
-                Criteria[idx] = new RubricCriteriaDto(SelectedCriteria.Id, FormCriteriaName, FormCriteriaMaxScore, FormCriteriaDescription);
-        }
-
-        ClearForm();
+        catch (DomainException ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex)       { ErrorMessage = $"Không thể cập nhật tiêu chí: {ex.Message}"; }
     }
 
     // ── Xoá tiêu chí ────────────────────────────────────────────────────────
@@ -138,19 +146,23 @@ public partial class RubricEditorViewModel : ObservableObject
     private async Task RemoveCriteriaAsync()
     {
         if (SelectedCriteria is null) return;
-
-        if (_rubricId.HasValue)
+        ErrorMessage = null;
+        try
         {
-            await _rubricUseCase.RemoveCriteriaAsync(
-                new RemoveRubricCriteriaCommand(_rubricId.Value, SelectedCriteria.Id));
-            await LoadAsync(_rubricId.Value);
+            if (_rubricId.HasValue)
+            {
+                await _rubricUseCase.RemoveCriteriaAsync(
+                    new RemoveRubricCriteriaCommand(_rubricId.Value, SelectedCriteria.Id));
+                await LoadAsync(_rubricId.Value);
+            }
+            else
+            {
+                Criteria.Remove(SelectedCriteria);
+            }
+            ClearForm();
         }
-        else
-        {
-            Criteria.Remove(SelectedCriteria);
-        }
-
-        ClearForm();
+        catch (DomainException ex) { ErrorMessage = ex.Message; }
+        catch (Exception ex)       { ErrorMessage = $"Không thể xoá tiêu chí: {ex.Message}"; }
     }
 
     // ── Huỷ chỉnh sửa ──────────────────────────────────────────────────────
@@ -163,10 +175,7 @@ public partial class RubricEditorViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void GoBack()
-    {
-        _mainVm.NavigateTo("Rubrics");
-    }
+    private void GoBack() => _mainVm.NavigateTo("Rubrics");
 
     private void ClearForm()
     {

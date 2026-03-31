@@ -96,5 +96,16 @@
                 </ContextMenu>
             </ListView.ContextMenu>
         </ListView>
+
+        <!-- Error banner -->
+        <Border DockPanel.Dock="Bottom" Background="#3AEF5350" CornerRadius="6" Padding="12,8" Margin="0,8,0,0"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource NullableToVisibilityConverter}, FallbackValue=Collapsed}">
+            <DockPanel>
+                <materialDesign:PackIcon Kind="AlertCircle" DockPanel.Dock="Left" VerticalAlignment="Center"
+                                         Foreground="#EF5350" Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#EF5350"
+                           TextWrapping="Wrap" VerticalAlignment="Center" FontSize="13"/>
+            </DockPanel>
+        </Border>
     </DockPanel>
 </UserControl>

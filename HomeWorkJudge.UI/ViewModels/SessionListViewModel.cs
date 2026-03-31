@@ -15,6 +15,7 @@ public partial class SessionListViewModel : ObservableObject
     [ObservableProperty] private ObservableCollection<GradingSessionSummaryDto> _sessions = [];
     [ObservableProperty] private GradingSessionSummaryDto? _selectedSession;
     [ObservableProperty] private bool _isLoading;
+    [ObservableProperty] private string? _errorMessage;
 
     public SessionListViewModel(IGradingSessionUseCase sessionUseCase, MainViewModel mainVm, IServiceProvider sp)
     {
@@ -28,11 +29,13 @@ public partial class SessionListViewModel : ObservableObject
     private async Task LoadAsync()
     {
         IsLoading = true;
+        ErrorMessage = null;
         try
         {
             var list = await _sessionUseCase.GetAllAsync();
             Sessions = new ObservableCollection<GradingSessionSummaryDto>(list);
         }
+        catch (Exception ex) { ErrorMessage = $"Không thể tải danh sách phiên chấm: {ex.Message}"; }
         finally { IsLoading = false; }
     }
 
@@ -59,7 +62,12 @@ public partial class SessionListViewModel : ObservableObject
     private async Task DeleteAsync(GradingSessionSummaryDto? session)
     {
         if (session is null) return;
-        await _sessionUseCase.DeleteAsync(session.SessionId);
-        Sessions.Remove(session);
+        ErrorMessage = null;
+        try
+        {
+            await _sessionUseCase.DeleteAsync(session.SessionId);
+            Sessions.Remove(session);
+        }
+        catch (Exception ex) { ErrorMessage = $"Không thể xoá phiên chấm: {ex.Message}"; }
     }
 }
