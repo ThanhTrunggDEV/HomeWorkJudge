@@ -12,6 +12,7 @@ using Ports.DTO.Grading;
 using Ports.DTO.Submission;
 using Ports.InBoundPorts.Grading;
 using Ports.OutBoundPorts.AI;
+using Ports.OutBoundPorts.Build;
 using Ports.OutBoundPorts.Plagiarism;
 
 namespace Application.UseCases;
@@ -22,6 +23,7 @@ public sealed class GradingUseCaseHandler : IGradingUseCase
     private readonly IGradingSessionRepository _sessionRepo;
     private readonly IRubricRepository _rubricRepo;
     private readonly IAiGradingPort _aiGrading;
+    private readonly ICSharpBuildPort _csharpBuild;
     private readonly IPlagiarismDetectionPort _plagiarismPort;
     private readonly IUnitOfWork _uow;
     private readonly IDomainEventDispatcher _dispatcher;
@@ -31,6 +33,7 @@ public sealed class GradingUseCaseHandler : IGradingUseCase
         IGradingSessionRepository sessionRepo,
         IRubricRepository rubricRepo,
         IAiGradingPort aiGrading,
+        ICSharpBuildPort csharpBuild,
         IPlagiarismDetectionPort plagiarismPort,
         IUnitOfWork uow,
         IDomainEventDispatcher dispatcher)
@@ -39,6 +42,7 @@ public sealed class GradingUseCaseHandler : IGradingUseCase
         _sessionRepo = sessionRepo;
         _rubricRepo = rubricRepo;
         _aiGrading = aiGrading;
+        _csharpBuild = csharpBuild;
         _plagiarismPort = plagiarismPort;
         _uow = uow;
         _dispatcher = dispatcher;
@@ -213,13 +217,28 @@ public sealed class GradingUseCaseHandler : IGradingUseCase
                 .Select(f => new Ports.DTO.Submission.SourceFileDto(f.FileName, f.Content))
                 .ToList();
 
-            var scores = await _aiGrading.GradeAsync(sourceFileDtos, criteriaDto, ct);
+            // ── BƯỚC 1: Build C# solution ─────────────────────────────────────
+            var buildResult = await _csharpBuild.BuildAsync(
+                sourceFileDtos,
+                submission.Id.Value.ToString(),
+                ct);
 
-            var rubricResults = scores
-                .Select(s => new RubricResult(s.CriteriaName, s.GivenScore, s.MaxScore, s.Comment))
-                .ToList();
+            if (!buildResult.Success)
+            {
+                // Build thất bại → 0 điểm, không gọi AI
+                submission.MarkBuildFailed(buildResult.BuildLog);
+            }
+            else
+            {
+                // ── BƯỚC 2: AI chấm bài ──────────────────────────────────────
+                var scores = await _aiGrading.GradeAsync(sourceFileDtos, criteriaDto, ct);
 
-            submission.AttachAIResults(rubricResults);
+                var rubricResults = scores
+                    .Select(s => new RubricResult(s.CriteriaName, s.GivenScore, s.MaxScore, s.Comment))
+                    .ToList();
+
+                submission.AttachAIResults(rubricResults);
+            }
         }
         catch (Exception ex)
         {
@@ -255,7 +274,8 @@ public sealed class GradingUseCaseHandler : IGradingUseCase
         RubricResults: s.RubricResults.Select(r => new RubricResultDto(r.CriteriaName, r.GivenScore, r.MaxScore, r.Comment)).ToList(),
         IsPlagiarismSuspected: s.IsPlagiarismSuspected,
         TeacherNote: s.TeacherNote,
-        ErrorMessage: s.ErrorMessage
+        ErrorMessage: s.ErrorMessage,
+        BuildLog: s.BuildLog
     );
 
     private static SubmissionSummaryDto ToSummaryDto(Submission s) => new(
