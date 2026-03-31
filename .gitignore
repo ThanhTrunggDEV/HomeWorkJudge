@@ -55,5 +55,10 @@ appsettings.Local.json
 **/appsettings.*.secrets.json
 **/appsettings.Secrets.json
 
+# Protect runtime output config (bin/Debug/appsettings.json has real keys)
+**/bin/**/appsettings.json
+**/bin/**/appsettings.*.json
+
 # Local SQLite artifacts
-HomeWorkJudge/*.db
+**/*.db
+*.db
