@@ -31,11 +31,17 @@ public partial class SubmissionReviewView : UserControl
         }
     }
 
-    private void FileTree_SelectedItemChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<object> e)
+    /// <summary>
+    /// Xử lý chọn file trong TreeView — đáng tin cậy hơn MouseBinding.
+    /// Chỉ chọn nếu là file node (không phải folder).
+    /// </summary>
+    private void FileTreeView_SelectedItemChanged(object sender,
+        System.Windows.RoutedPropertyChangedEventArgs<object> e)
     {
-        if (DataContext is SubmissionReviewViewModel vm && e.NewValue is Ports.DTO.Submission.SourceFileDto file)
+        if (DataContext is not SubmissionReviewViewModel vm) return;
+        if (e.NewValue is FileTreeNode node && !node.IsFolder)
         {
-            vm.SelectedFile = file;
+            vm.SelectFileNodeCommand.Execute(node);
         }
     }
 
@@ -50,16 +56,16 @@ public partial class SubmissionReviewView : UserControl
         var ext = System.IO.Path.GetExtension(fileName).ToLowerInvariant();
         var highlighting = ext switch
         {
-            ".cs" => HighlightingManager.Instance.GetDefinition("C#"),
-            ".java" => HighlightingManager.Instance.GetDefinition("Java"),
-            ".py" => HighlightingManager.Instance.GetDefinition("Python"),
-            ".js" or ".ts" => HighlightingManager.Instance.GetDefinition("JavaScript"),
+            ".cs"                   => HighlightingManager.Instance.GetDefinition("C#"),
+            ".java"                 => HighlightingManager.Instance.GetDefinition("Java"),
+            ".py"                   => HighlightingManager.Instance.GetDefinition("Python"),
+            ".js" or ".ts"          => HighlightingManager.Instance.GetDefinition("JavaScript"),
             ".c" or ".cpp" or ".h" or ".hpp" => HighlightingManager.Instance.GetDefinition("C++"),
-            ".xml" or ".xaml" => HighlightingManager.Instance.GetDefinition("XML"),
-            ".html" => HighlightingManager.Instance.GetDefinition("HTML"),
-            ".css" => HighlightingManager.Instance.GetDefinition("CSS"),
-            ".php" => HighlightingManager.Instance.GetDefinition("PHP"),
-            _ => null
+            ".xml" or ".xaml"       => HighlightingManager.Instance.GetDefinition("XML"),
+            ".html"                 => HighlightingManager.Instance.GetDefinition("HTML"),
+            ".css"                  => HighlightingManager.Instance.GetDefinition("CSS"),
+            ".php"                  => HighlightingManager.Instance.GetDefinition("PHP"),
+            _                       => null
         };
 
         CodeEditor.SyntaxHighlighting = highlighting;

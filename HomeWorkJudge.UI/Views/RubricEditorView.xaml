@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
     <DockPanel>
-        <!-- Header with back button -->
+        <!-- Header -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
             <Button Style="{StaticResource MaterialDesignIconButton}"
                     Command="{Binding GoBackCommand}" DockPanel.Dock="Left">
@@ -11,9 +11,14 @@
             </Button>
             <TextBlock Text="{Binding RubricName, StringFormat='Rubric: {0}', FallbackValue='Rubric mới'}"
                        Style="{StaticResource PageTitle}" Margin="12,0,0,0" VerticalAlignment="Center"/>
-            <Button Style="{StaticResource MaterialDesignRaisedButton}"
+            <Button Style="{StaticResource PrimaryButton}"
                     Command="{Binding SaveCommand}" HorizontalAlignment="Right"
-                    Content="Lưu" Padding="24,8"/>
+                    Visibility="{Binding IsNewRubric, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="ContentSave" VerticalAlignment="Center"/>
+                    <TextBlock Text="Lưu Rubric" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
         </DockPanel>
 
         <!-- Rubric name -->
@@ -24,43 +29,81 @@
                      FontSize="16"/>
         </Border>
 
-        <!-- Add criteria panel -->
+        <!-- Add / Edit criteria form -->
         <Border DockPanel.Dock="Bottom" Style="{StaticResource ContentCard}">
             <StackPanel>
-                <TextBlock Text="Thêm tiêu chí" Style="{StaticResource SectionTitle}"/>
-                <Grid>
+                <!-- Title: Thêm / Sửa -->
+                <TextBlock Text="Thêm tiêu chí" Style="{StaticResource SectionTitle}"
+                           Visibility="{Binding IsEditingCriteria, Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
+                <TextBlock Text="✏️ Sửa tiêu chí (chọn hàng bên dưới)" Style="{StaticResource SectionTitle}"
+                           Visibility="{Binding IsEditingCriteria, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <!-- Input fields -->
+                <Grid Margin="0,4,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="100"/>
                         <ColumnDefinition Width="2*"/>
-                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBox Grid.Column="0" Margin="0,0,8,0"
                              materialDesign:HintAssist.Hint="Tên"
-                             Text="{Binding NewCriteriaName, UpdateSourceTrigger=PropertyChanged}"
+                             Text="{Binding FormCriteriaName, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource MaterialDesignFloatingHintTextBox}"/>
                     <TextBox Grid.Column="1" Margin="0,0,8,0"
                              materialDesign:HintAssist.Hint="Điểm tối đa"
-                             Text="{Binding NewCriteriaMaxScore, UpdateSourceTrigger=PropertyChanged}"
+                             Text="{Binding FormCriteriaMaxScore, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource MaterialDesignFloatingHintTextBox}"/>
-                    <TextBox Grid.Column="2" Margin="0,0,8,0"
+                    <TextBox Grid.Column="2"
                              materialDesign:HintAssist.Hint="Mô tả"
-                             Text="{Binding NewCriteriaDescription, UpdateSourceTrigger=PropertyChanged}"
+                             Text="{Binding FormCriteriaDescription, UpdateSourceTrigger=PropertyChanged}"
                              Style="{StaticResource MaterialDesignFloatingHintTextBox}"/>
-                    <Button Grid.Column="3" Style="{StaticResource MaterialDesignFloatingActionMiniButton}"
-                            Command="{Binding AddCriteriaCommand}" ToolTip="Thêm">
-                        <materialDesign:PackIcon Kind="Plus"/>
-                    </Button>
                 </Grid>
+
+                <!-- Buttons -->
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0" HorizontalAlignment="Right">
+                    <!-- ADD mode -->
+                    <Button Style="{StaticResource PrimaryButton}"
+                            Command="{Binding AddCriteriaCommand}"
+                            Visibility="{Binding IsEditingCriteria, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Plus" VerticalAlignment="Center"/>
+                            <TextBlock Text="Thêm" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- EDIT mode -->
+                    <Button Style="{StaticResource PrimaryButton}"
+                            Command="{Binding UpdateCriteriaCommand}"
+                            Visibility="{Binding IsEditingCriteria, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Check" VerticalAlignment="Center"/>
+                            <TextBlock Text="Cập nhật" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Style="{StaticResource DangerButton}"
+                            Command="{Binding RemoveCriteriaCommand}" Margin="8,0,0,0"
+                            Visibility="{Binding IsEditingCriteria, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Delete" VerticalAlignment="Center"/>
+                            <TextBlock Text="Xoá" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Style="{StaticResource TextButton}"
+                            Command="{Binding CancelEditCommand}" Margin="8,0,0,0"
+                            Content="Huỷ"
+                            Visibility="{Binding IsEditingCriteria, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                </StackPanel>
             </StackPanel>
         </Border>
 
-        <!-- Criteria list -->
+        <!-- Criteria table -->
         <Border Style="{StaticResource ContentCard}">
             <DataGrid ItemsSource="{Binding Criteria}"
                       SelectedItem="{Binding SelectedCriteria}"
                       AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
-                      Style="{StaticResource MaterialDesignDataGridTextColumn}">
+                      SelectionMode="Single">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Tên tiêu chí" Binding="{Binding Name}" Width="*"/>
                     <DataGridTextColumn Header="Điểm tối đa" Binding="{Binding MaxScore, StringFormat=F1}" Width="100"/>

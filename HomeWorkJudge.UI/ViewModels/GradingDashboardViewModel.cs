@@ -96,6 +96,22 @@ public partial class GradingDashboardViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task RegradeOneAsync(SubmissionSummaryDto? sub)
+    {
+        if (sub is null) return;
+        IsLoading = true;
+        StatusMessage = $"Đang chấm lại {sub.StudentIdentifier}...";
+        try
+        {
+            await _gradingUseCase.RegradeSubmissionAsync(new RegradeSubmissionCommand(sub.SubmissionId));
+            StatusMessage = $"Đã chấm lại: {sub.StudentIdentifier}.";
+            await RefreshAsync();
+        }
+        catch (Exception ex) { StatusMessage = $"Lỗi: {ex.Message}"; }
+        finally { IsLoading = false; }
+    }
+
+    [RelayCommand]
     private async Task CheckPlagiarismAsync()
     {
         IsLoading = true;

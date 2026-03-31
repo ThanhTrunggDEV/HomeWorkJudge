@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run HomeWorkJudge UI",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-homeworkjudge-ui",
+      "program": "${workspaceFolder}/HomeWorkJudge.UI/bin/Debug/net9.0-windows/HomeWorkJudge.UI.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    }
+  ]
+}

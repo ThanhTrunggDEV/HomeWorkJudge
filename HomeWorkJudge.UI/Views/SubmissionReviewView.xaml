@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-             xmlns:converters="clr-namespace:HomeWorkJudge.UI.Converters">
+             xmlns:converters="clr-namespace:HomeWorkJudge.UI.Converters"
+             xmlns:vm="clr-namespace:HomeWorkJudge.UI.ViewModels">
     <UserControl.Resources>
         <converters:StatusToBrushConverter x:Key="StatusBrush"/>
     </UserControl.Resources>
@@ -54,27 +55,55 @@
                 <ColumnDefinition Width="400" MinWidth="300"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Left: Source code -->
+            <!-- Left: Source code + file tree -->
             <DockPanel Grid.Column="0">
-                <!-- File tree -->
-                <Border DockPanel.Dock="Left" Width="200"
+
+                <!-- Sidebar toggle button -->
+                <Button DockPanel.Dock="Left" Style="{StaticResource MaterialDesignIconButton}"
+                        Command="{Binding ToggleFileTreeCommand}"
+                        Width="28" Height="28" Padding="0"
+                        VerticalAlignment="Top" Margin="0,6,4,0"
+                        ToolTip="Ẩn/hiện cây file">
+                    <Grid>
+                        <!-- Sidebar đang mở → bấm để đóng (ChevronLeft) -->
+                        <materialDesign:PackIcon Kind="ChevronLeft" Width="18" Height="18"
+                                                 Visibility="{Binding IsFileTreeVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <!-- Sidebar đang đóng → bấm để mở (ChevronRight) -->
+                        <materialDesign:PackIcon Kind="ChevronRight" Width="18" Height="18"
+                                                 Visibility="{Binding IsFileTreeVisible, Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
+                    </Grid>
+                </Button>
+
+                <!-- File tree sidebar -->
+                <Border DockPanel.Dock="Left" Width="220"
                         Background="{DynamicResource MaterialDesign.Brush.Card.Background}"
-                        CornerRadius="8" Margin="0,0,8,0">
+                        CornerRadius="8" Margin="0,0,8,0"
+                        Visibility="{Binding IsFileTreeVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <DockPanel>
                         <TextBlock DockPanel.Dock="Top" Text="Files" FontWeight="SemiBold"
                                    Margin="12,12,12,8"/>
-                        <TreeView ItemsSource="{Binding SourceFiles}"
-                                  SelectedItemChanged="FileTree_SelectedItemChanged">
-                            <TreeView.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
+                        <!-- SelectedItemChanged handled in code-behind for reliability -->
+                        <TreeView x:Name="FileTreeView"
+                                  ItemsSource="{Binding FileTree}"
+                                  Background="Transparent" BorderThickness="0"
+                                  SelectedItemChanged="FileTreeView_SelectedItemChanged">
+                            <TreeView.Resources>
+                                <HierarchicalDataTemplate DataType="{x:Type vm:FileTreeNode}"
+                                                          ItemsSource="{Binding Children}">
+                                    <StackPanel Orientation="Horizontal" Margin="2,3">
+                                        <materialDesign:PackIcon Kind="FolderOutline" Width="16" Height="16"
+                                                                 VerticalAlignment="Center"
+                                                                 Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                                                 Visibility="{Binding IsFolder, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                         <materialDesign:PackIcon Kind="FileCodeOutline" Width="16" Height="16"
-                                                                 VerticalAlignment="Center" Margin="0,0,6,0"
-                                                                 Foreground="{DynamicResource PrimaryHueMidBrush}"/>
-                                        <TextBlock Text="{Binding FileName}" VerticalAlignment="Center"/>
+                                                                 VerticalAlignment="Center"
+                                                                 Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                                                 Visibility="{Binding IsFolder, Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
+                                        <TextBlock Text="{Binding Name}" Margin="6,0,0,0"
+                                                   VerticalAlignment="Center" FontSize="12"/>
                                     </StackPanel>
-                                </DataTemplate>
-                            </TreeView.ItemTemplate>
+                                </HierarchicalDataTemplate>
+                            </TreeView.Resources>
                         </TreeView>
                     </DockPanel>
                 </Border>

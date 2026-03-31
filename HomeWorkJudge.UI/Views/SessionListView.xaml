@@ -5,11 +5,11 @@
     <DockPanel>
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
             <TextBlock Text="Phiên chấm bài" Style="{StaticResource PageTitle}" DockPanel.Dock="Left"/>
-            <Button Style="{StaticResource MaterialDesignRaisedButton}"
+            <Button Style="{StaticResource PrimaryButton}"
                     Command="{Binding CreateNewCommand}" HorizontalAlignment="Right">
                 <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="Plus" VerticalAlignment="Center"/>
-                    <TextBlock Text="Tạo phiên mới" Margin="8,0,0,0"/>
+                    <TextBlock Text="Tạo phiên mới" Margin="6,0,0,0" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
         </DockPanel>
@@ -18,11 +18,27 @@
                      Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
                      Margin="0,0,0,8"/>
 
-        <ListView ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}">
+        <ListView ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}"
+                  BorderThickness="0" Background="Transparent"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <!-- Stretch items to full width -->
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Margin" Value="0,0,0,4"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListViewItem">
+                                <ContentPresenter/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <Border Style="{StaticResource ContentCard}" Padding="16" Margin="0,4"
-                            Cursor="Hand">
+                    <Border Style="{StaticResource ContentCard}" Padding="20,16" Cursor="Hand">
                         <Border.InputBindings>
                             <MouseBinding Gesture="LeftDoubleClick"
                                           Command="{Binding DataContext.OpenSessionCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
@@ -33,21 +49,29 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel>
+
+                            <!-- Left: Session info -->
+                            <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <materialDesign:PackIcon Kind="FormatListBulleted" VerticalAlignment="Center"
-                                                             Foreground="{DynamicResource PrimaryHueMidBrush}" Margin="0,0,4,0"/>
-                                    <TextBlock Text="{Binding RubricName}" Opacity="0.7"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <materialDesign:PackIcon Kind="FormatListBulleted" Width="16" Height="16"
+                                                             VerticalAlignment="Center"
+                                                             Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                                    <TextBlock Text="{Binding RubricName}" Opacity="0.7" Margin="6,0,0,0"
+                                               VerticalAlignment="Center"/>
                                 </StackPanel>
-                                <TextBlock Margin="0,4,0,0" Opacity="0.5"
+                                <TextBlock Margin="0,4,0,0" Opacity="0.5" FontSize="12"
                                            Text="{Binding CreatedAt, StringFormat='Tạo lúc: {0:dd/MM/yyyy HH:mm}'}"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                <TextBlock FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"
+
+                            <!-- Right: Stats -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                        MinWidth="100">
+                                <TextBlock FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource PrimaryHueMidBrush}"
                                            Text="{Binding TotalSubmissions}"/>
-                                <TextBlock Text="bài nộp" Opacity="0.5" HorizontalAlignment="Center"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock Text="bài nộp" Opacity="0.5" HorizontalAlignment="Center" FontSize="12"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0" HorizontalAlignment="Center">
                                     <TextBlock Foreground="{StaticResource StatusReviewedBrush}"
                                                Text="{Binding ReviewedCount, StringFormat='✓ {0}'}"/>
                                     <TextBlock Foreground="{StaticResource StatusErrorBrush}" Margin="12,0,0,0"
@@ -58,6 +82,19 @@
                     </Border>
                 </DataTemplate>
             </ListView.ItemTemplate>
+            <ListView.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Mở" Command="{Binding OpenSessionCommand}"
+                              CommandParameter="{Binding SelectedSession}">
+                        <MenuItem.Icon><materialDesign:PackIcon Kind="FolderOpen"/></MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
+                    <MenuItem Header="Xoá" Command="{Binding DeleteCommand}"
+                              CommandParameter="{Binding SelectedSession}" Foreground="#EF5350">
+                        <MenuItem.Icon><materialDesign:PackIcon Kind="Delete" Foreground="#EF5350"/></MenuItem.Icon>
+                    </MenuItem>
+                </ContextMenu>
+            </ListView.ContextMenu>
         </ListView>
     </DockPanel>
 </UserControl>

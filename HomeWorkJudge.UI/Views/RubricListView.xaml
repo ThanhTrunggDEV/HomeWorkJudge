@@ -8,24 +8,49 @@
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
             <TextBlock Text="Quản lý Rubric" Style="{StaticResource PageTitle}" DockPanel.Dock="Left"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Style="{StaticResource MaterialDesignFlatButton}"
-                        Command="{Binding GenerateByAiCommand}"
-                        CommandParameter="Rubric cho bài tập lập trình C cơ bản"
-                        Margin="0,0,8,0">
+                <Button Style="{StaticResource SecondaryButton}"
+                        Command="{Binding ToggleAiPanelCommand}" Margin="0,0,8,0">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="AutoFix" VerticalAlignment="Center"/>
-                        <TextBlock Text="AI Tạo" Margin="8,0,0,0"/>
+                        <TextBlock Text="AI Tạo" Margin="6,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource MaterialDesignRaisedButton}"
+                <Button Style="{StaticResource PrimaryButton}"
                         Command="{Binding CreateNewCommand}">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="Plus" VerticalAlignment="Center"/>
-                        <TextBlock Text="Tạo mới" Margin="8,0,0,0"/>
+                        <TextBlock Text="Tạo mới" Margin="6,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </StackPanel>
         </DockPanel>
+
+        <!-- ── AI Generation Panel (collapsible) ──── -->
+        <Border DockPanel.Dock="Top" Style="{StaticResource ContentCard}"
+                Visibility="{Binding ShowAiPanel, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel>
+                <TextBlock Text="🤖 AI tạo Rubric" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                <TextBox materialDesign:HintAssist.Hint="Tên Rubric (tuỳ chọn)"
+                         Text="{Binding AiRubricName, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource MaterialDesignFloatingHintTextBox}"
+                         Margin="0,0,0,12"/>
+                <TextBox materialDesign:HintAssist.Hint="Mô tả bài tập / yêu cầu (bắt buộc)"
+                         Text="{Binding AiDescription, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource MaterialDesignFloatingHintTextBox}"
+                         AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
+                         Margin="0,0,0,12"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding GenerateByAiCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Creation" VerticalAlignment="Center"/>
+                            <TextBlock Text="Tạo bằng AI" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource TextButton}" Content="Đóng"
+                            Command="{Binding ToggleAiPanelCommand}" Margin="8,0,0,0"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
 
         <!-- ── Search bar ──────────────────────────── -->
         <Border DockPanel.Dock="Top" Style="{StaticResource ContentCard}" Padding="12">

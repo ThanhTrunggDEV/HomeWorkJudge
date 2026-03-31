@@ -4,8 +4,30 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel MaxWidth="500" HorizontalAlignment="Left">
-            <TextBlock Text="Cài đặt AI" Style="{StaticResource PageTitle}"/>
+            <TextBlock Text="Cài đặt" Style="{StaticResource PageTitle}"/>
 
+            <!-- ── Giao diện ──────────────────────────── -->
+            <Border Style="{StaticResource ContentCard}">
+                <StackPanel>
+                    <TextBlock Text="Giao diện" Style="{StaticResource SectionTitle}" Margin="0,0,0,12"/>
+
+                    <DockPanel>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                            <materialDesign:PackIcon Kind="ThemeLightDark" Width="22" Height="22"
+                                                     VerticalAlignment="Center"
+                                                     Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                            <TextBlock Text="Dark Mode" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="14"/>
+                        </StackPanel>
+                        <ToggleButton DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                      Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                      IsChecked="{Binding IsDarkMode}"/>
+                    </DockPanel>
+                    <TextBlock Text="Chuyển đổi giao diện sáng / tối (áp dụng ngay)"
+                               Style="{StaticResource CaptionText}" Margin="32,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ── Gemini API ─────────────────────────── -->
             <Border Style="{StaticResource ContentCard}">
                 <StackPanel>
                     <TextBlock Text="Gemini API" Style="{StaticResource SectionTitle}" Margin="0,0,0,12"/>
@@ -34,10 +56,15 @@
                 </StackPanel>
             </Border>
 
-            <Button Style="{StaticResource MaterialDesignRaisedButton}"
+            <!-- Save -->
+            <Button Style="{StaticResource PrimaryButton}"
                     Command="{Binding SaveCommand}"
-                    Content="Lưu cấu hình" Padding="32,12" Margin="0,8,0,0"
-                    HorizontalAlignment="Left"/>
+                    Margin="0,8,0,0" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="ContentSave" VerticalAlignment="Center" Width="18" Height="18"/>
+                    <TextBlock Text="Lưu cấu hình" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
 
             <TextBlock Text="{Binding StatusMessage}" Margin="0,12,0,0"
                        Foreground="{DynamicResource PrimaryHueMidBrush}"

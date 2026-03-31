@@ -41,53 +41,101 @@
 
     <DockPanel>
         <!-- ── Sidebar ──────────────────────────────── -->
-        <Border DockPanel.Dock="Left" Width="240"
+        <Border DockPanel.Dock="Left"
                 Background="{DynamicResource MaterialDesign.Brush.Card.Background}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Width" Value="240"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsSidebarCollapsed}" Value="True">
+                            <Setter Property="Width" Value="56"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+
             <DockPanel>
-                <!-- Logo / App name -->
-                <StackPanel DockPanel.Dock="Top" Margin="20,24,20,32">
+                <!-- Toggle button at top -->
+                <Button DockPanel.Dock="Top"
+                        Style="{StaticResource MaterialDesignIconButton}"
+                        Command="{Binding ToggleSidebarCommand}"
+                        HorizontalAlignment="Right" Margin="4,8,4,0"
+                        ToolTip="Ẩn/hiện menu">
+                    <materialDesign:PackIcon Width="20" Height="20" Kind="Menu"/>
+                </Button>
+
+                <!-- Logo / App name — ẩn khi collapsed -->
+                <StackPanel DockPanel.Dock="Top" Margin="20,12,20,24"
+                            Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                     <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="SchoolOutline" Width="32" Height="32"
                                                  Foreground="{DynamicResource PrimaryHueMidBrush}"
                                                  VerticalAlignment="Center"/>
-                        <TextBlock Text="HomeWork Judge" FontSize="20" FontWeight="Bold"
-                                   Margin="12,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="HomeWork Judge" FontSize="18" FontWeight="Bold"
+                                   Margin="10,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Text="AI Grading Assistant" Style="{StaticResource CaptionText}" Margin="44,4,0,0"/>
+                    <TextBlock Text="AI Grading Assistant" Style="{StaticResource CaptionText}" Margin="42,4,0,0"/>
                 </StackPanel>
 
-                <!-- Version info at bottom -->
+                <!-- Icon only khi collapsed -->
+                <materialDesign:PackIcon DockPanel.Dock="Top" Kind="SchoolOutline"
+                                         Width="28" Height="28" HorizontalAlignment="Center"
+                                         Foreground="{DynamicResource PrimaryHueMidBrush}"
+                                         Margin="0,8,0,20"
+                                         Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                <!-- Version at bottom -->
                 <TextBlock DockPanel.Dock="Bottom" Text="v1.0.0" Style="{StaticResource CaptionText}"
-                           Margin="20,0,0,16"/>
+                           Margin="20,0,0,16"
+                           Visibility="{Binding IsSidebarCollapsed, Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
 
                 <!-- Nav items -->
-                <StackPanel Margin="8,0">
+                <StackPanel Margin="4,0">
+
+                    <!-- Rubric nav -->
                     <RadioButton Style="{StaticResource SidebarButton}"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EqualityConverter}, ConverterParameter=Rubrics}"
-                                 Command="{Binding NavigateToCommand}" CommandParameter="Rubrics">
+                                 Command="{Binding NavigateToCommand}" CommandParameter="Rubrics"
+                                 ToolTip="Rubric">
                         <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="FormatListBulleted" VerticalAlignment="Center"/>
-                            <TextBlock Text="Rubric" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            <materialDesign:PackIcon Kind="FormatListBulleted" VerticalAlignment="Center"
+                                                     Width="20" Height="20"/>
+                            <TextBlock Text="Rubric" Margin="12,0,0,0" VerticalAlignment="Center"
+                                       Visibility="{Binding DataContext.IsSidebarCollapsed,
+                                           RelativeSource={RelativeSource AncestorType=Window},
+                                           Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
                         </StackPanel>
                     </RadioButton>
 
+                    <!-- Sessions nav -->
                     <RadioButton Style="{StaticResource SidebarButton}"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EqualityConverter}, ConverterParameter=Sessions}"
-                                 Command="{Binding NavigateToCommand}" CommandParameter="Sessions">
+                                 Command="{Binding NavigateToCommand}" CommandParameter="Sessions"
+                                 ToolTip="Phiên chấm">
                         <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="FolderOpenOutline" VerticalAlignment="Center"/>
-                            <TextBlock Text="Phiên chấm" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            <materialDesign:PackIcon Kind="FolderOpenOutline" VerticalAlignment="Center"
+                                                     Width="20" Height="20"/>
+                            <TextBlock Text="Phiên chấm" Margin="12,0,0,0" VerticalAlignment="Center"
+                                       Visibility="{Binding DataContext.IsSidebarCollapsed,
+                                           RelativeSource={RelativeSource AncestorType=Window},
+                                           Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
                         </StackPanel>
                     </RadioButton>
 
-                    <Separator Margin="12,16" Opacity="0.2"/>
+                    <Separator Margin="8,12" Opacity="0.2"/>
 
+                    <!-- Settings nav -->
                     <RadioButton Style="{StaticResource SidebarButton}"
                                  IsChecked="{Binding CurrentPage, Converter={StaticResource EqualityConverter}, ConverterParameter=Settings}"
-                                 Command="{Binding NavigateToCommand}" CommandParameter="Settings">
+                                 Command="{Binding NavigateToCommand}" CommandParameter="Settings"
+                                 ToolTip="Cài đặt">
                         <StackPanel Orientation="Horizontal">
-                            <materialDesign:PackIcon Kind="CogOutline" VerticalAlignment="Center"/>
-                            <TextBlock Text="Cài đặt" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            <materialDesign:PackIcon Kind="CogOutline" VerticalAlignment="Center"
+                                                     Width="20" Height="20"/>
+                            <TextBlock Text="Cài đặt" Margin="12,0,0,0" VerticalAlignment="Center"
+                                       Visibility="{Binding DataContext.IsSidebarCollapsed,
+                                           RelativeSource={RelativeSource AncestorType=Window},
+                                           Converter={StaticResource InverseBooleanToVisibilityConverter}}"/>
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>

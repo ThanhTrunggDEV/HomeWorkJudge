@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
     <DockPanel>
+        <!-- Header -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
             <Button Style="{StaticResource MaterialDesignIconButton}"
                     Command="{Binding GoBackCommand}" DockPanel.Dock="Left">
@@ -18,6 +19,7 @@
 
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel MaxWidth="600" HorizontalAlignment="Left">
+
                 <!-- Session name -->
                 <Border Style="{StaticResource ContentCard}">
                     <TextBox materialDesign:HintAssist.Hint="Tên phiên chấm (VD: Bài 1 - Lớp CS101)"
@@ -38,18 +40,36 @@
                 <!-- Select files -->
                 <Border Style="{StaticResource ContentCard}">
                     <StackPanel>
-                        <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                        <Button Style="{StaticResource SecondaryButton}"
                                 Command="{Binding SelectFilesCommand}"
                                 HorizontalAlignment="Left">
                             <StackPanel Orientation="Horizontal">
                                 <materialDesign:PackIcon Kind="FolderOpen" VerticalAlignment="Center"/>
-                                <TextBlock Text="Chọn file bài nộp (zip/rar)" Margin="8,0,0,0"/>
+                                <TextBlock Text="Chọn file bài nộp (zip/rar)" Margin="8,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
-                        <ItemsControl ItemsSource="{Binding SelectedFiles}" Margin="0,8,0,0">
+
+                        <!-- File count badge -->
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0"
+                                    Visibility="{Binding SelectedFiles.Count,
+                                        Converter={StaticResource NullableToVisibilityConverter},
+                                        FallbackValue=Collapsed}">
+                            <materialDesign:PackIcon Kind="FileMultiple" Width="16" Height="16"
+                                                     VerticalAlignment="Center"
+                                                     Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                            <TextBlock Margin="6,0,0,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource PrimaryHueMidBrush}" FontWeight="SemiBold"
+                                       Text="{Binding SelectedFiles.Count, StringFormat='{}{0} file đã chọn'}"/>
+                        </StackPanel>
+
+                        <ItemsControl ItemsSource="{Binding SelectedFiles}" Margin="0,6,0,0"
+                                      Visibility="{Binding SelectedFiles.Count,
+                                          Converter={StaticResource NullableToVisibilityConverter},
+                                          FallbackValue=Collapsed}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding}" Style="{StaticResource CaptionText}" Margin="0,2"/>
+                                    <TextBlock Text="{Binding}" Style="{StaticResource CaptionText}"
+                                               Margin="0,2" TextTrimming="CharacterEllipsis"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -57,16 +77,20 @@
                 </Border>
 
                 <!-- Create button -->
-                <Button Style="{StaticResource MaterialDesignRaisedButton}"
+                <Button Style="{StaticResource PrimaryButton}"
                         Command="{Binding CreateSessionCommand}"
-                        Content="Tạo phiên chấm"
-                        Padding="32,12" HorizontalAlignment="Left"
-                        Margin="0,8,0,0"/>
+                        HorizontalAlignment="Left" Margin="0,8,0,16">
+                    <StackPanel Orientation="Horizontal">
+                        <materialDesign:PackIcon Kind="PlayCircleOutline" VerticalAlignment="Center"/>
+                        <TextBlock Text="Tạo phiên chấm" Margin="8,0,0,0" VerticalAlignment="Center"
+                                   FontSize="15"/>
+                    </StackPanel>
+                </Button>
 
                 <!-- Result message -->
-                <TextBlock Text="{Binding ResultMessage}" FontSize="14"
+                <TextBlock Text="{Binding ResultMessage}" FontSize="13"
                            Foreground="{DynamicResource PrimaryHueMidBrush}"
-                           Margin="0,16,0,0"
+                           Margin="0,4,0,0" TextWrapping="Wrap"
                            Visibility="{Binding ResultMessage, Converter={StaticResource NullableToVisibilityConverter}, FallbackValue=Collapsed}"/>
             </StackPanel>
         </ScrollViewer>
