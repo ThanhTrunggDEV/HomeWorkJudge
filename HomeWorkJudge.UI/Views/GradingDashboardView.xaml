@@ -134,7 +134,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Điểm" Binding="{Binding TotalScore, StringFormat=F2}" Width="80"/>
-                <DataGridTemplateColumn Header="Đạo văn" Width="70">
+                <DataGridTemplateColumn Header="Đạo văn" Width="90">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <materialDesign:PackIcon Kind="AlertCircle"
