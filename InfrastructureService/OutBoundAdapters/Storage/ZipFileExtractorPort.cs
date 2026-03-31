@@ -22,20 +22,48 @@ public sealed class ZipFileExtractorPort : IFileExtractorPort
     // Whitelist các extension source code hợp lệ
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
+        // ── C / C++ ───────────────────────────────────────────────────────────
         ".c", ".cpp", ".h", ".hpp",
+
+        // ── Java ──────────────────────────────────────────────────────────────
         ".java",
+
+        // ── Python ────────────────────────────────────────────────────────────
         ".py", ".pyx",
+
+        // ── C# / .NET ─────────────────────────────────────────────────────────
         ".cs",
-        ".js", ".ts",
-        ".go",
-        ".rs",
-        ".rb",
-        ".php",
-        ".swift",
-        ".kt",
-        // C# project files — cần thiết để dotnet build hoạt động
+        // Project / solution files (cần để dotnet build hoạt động)
         ".csproj", ".sln", ".slnx",
-        ".txt", ".md"   // cho phép readme
+        // WPF / MAUI / UWP markup
+        ".xaml",
+        // ASP.NET Razor views & Blazor components
+        ".cshtml", ".razor",
+        // Resource files (WPF / Windows Forms cần)
+        ".resx",
+        // Config & data files
+        ".json", ".xml", ".config",
+
+        // ── Web / JS / TS ─────────────────────────────────────────────────────
+        ".js", ".ts", ".html", ".css",
+
+        // ── Go ────────────────────────────────────────────────────────────────
+        ".go",
+
+        // ── Rust ──────────────────────────────────────────────────────────────
+        ".rs",
+
+        // ── Ruby ──────────────────────────────────────────────────────────────
+        ".rb",
+
+        // ── PHP ───────────────────────────────────────────────────────────────
+        ".php",
+
+        // ── Swift / Kotlin ────────────────────────────────────────────────────
+        ".swift", ".kt",
+
+        // ── Docs ──────────────────────────────────────────────────────────────
+        ".txt", ".md"
     };
 
     // Thư mục cần bỏ qua
