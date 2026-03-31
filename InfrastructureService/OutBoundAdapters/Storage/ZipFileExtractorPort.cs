@@ -33,6 +33,8 @@ public sealed class ZipFileExtractorPort : IFileExtractorPort
         ".php",
         ".swift",
         ".kt",
+        // C# project files — cần thiết để dotnet build hoạt động
+        ".csproj", ".sln", ".slnx",
         ".txt", ".md"   // cho phép readme
     };
 

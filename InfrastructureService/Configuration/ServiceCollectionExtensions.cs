@@ -1,12 +1,14 @@
 using InfrastructureService.Common.Resilience;
 using InfrastructureService.Configuration.Options;
 using InfrastructureService.OutBoundAdapters.AI;
+using InfrastructureService.OutBoundAdapters.Build;
 using InfrastructureService.OutBoundAdapters.Plagiarism;
 using InfrastructureService.OutBoundAdapters.Report;
 using InfrastructureService.OutBoundAdapters.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Ports.OutBoundPorts.AI;
+using Ports.OutBoundPorts.Build;
 using Ports.OutBoundPorts.Plagiarism;
 using Ports.OutBoundPorts.Report;
 using Ports.OutBoundPorts.Storage;
@@ -35,8 +37,9 @@ public static class ServiceCollectionExtensions
         // Plagiarism
         services.AddTransient<IPlagiarismDetectionPort, LocalPlagiarismDetectionPort>();
 
-        // File extraction (zip/rar)
+        // File extraction (zip/rar) + C# build
         services.AddTransient<IFileExtractorPort, ZipFileExtractorPort>();
+        services.AddTransient<ICSharpBuildPort, DotnetBuildPort>();
 
         // Report export (CSV/XLSX)
         services.AddTransient<IReportExportPort, ReportExportPort>();
