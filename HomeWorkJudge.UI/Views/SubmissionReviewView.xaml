@@ -1,0 +1,192 @@
+<UserControl x:Class="HomeWorkJudge.UI.Views.SubmissionReviewView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
+             xmlns:converters="clr-namespace:HomeWorkJudge.UI.Converters">
+    <UserControl.Resources>
+        <converters:StatusToBrushConverter x:Key="StatusBrush"/>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <!-- Header with navigation -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <Button Style="{StaticResource MaterialDesignIconButton}"
+                    Command="{Binding GoBackCommand}" DockPanel.Dock="Left">
+                <materialDesign:PackIcon Kind="ArrowLeft"/>
+            </Button>
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" Margin="12,0">
+                <TextBlock Text="{Binding StudentIdentifier}" FontSize="20" FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+                <Border Background="{Binding Status, Converter={StaticResource StatusBrush}}"
+                        CornerRadius="10" Padding="10,4" Margin="12,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Status}" FontSize="11" Foreground="White" FontWeight="SemiBold"/>
+                </Border>
+                <materialDesign:PackIcon Kind="AlertCircle" Foreground="{StaticResource StatusErrorBrush}"
+                                         Width="20" Height="20" VerticalAlignment="Center"
+                                         Visibility="{Binding IsPlagiarismSuspected, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                         ToolTip="Nghi ngờ đạo văn"/>
+            </StackPanel>
+
+            <!-- Prev / Next navigation -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Style="{StaticResource MaterialDesignIconButton}"
+                        Command="{Binding GoPrevCommand}" IsEnabled="{Binding HasPrev}">
+                    <materialDesign:PackIcon Kind="ChevronLeft"/>
+                </Button>
+                <TextBlock Text="{Binding NavigationInfo}" VerticalAlignment="Center"
+                           Margin="8,0" Opacity="0.6"/>
+                <Button Style="{StaticResource MaterialDesignIconButton}"
+                        Command="{Binding GoNextCommand}" IsEnabled="{Binding HasNext}">
+                    <materialDesign:PackIcon Kind="ChevronRight"/>
+                </Button>
+            </StackPanel>
+        </DockPanel>
+
+        <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True"
+                     Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+        <!-- Main 2-panel layout -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="400"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="400" MinWidth="300"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: Source code -->
+            <DockPanel Grid.Column="0">
+                <!-- File tree -->
+                <Border DockPanel.Dock="Left" Width="200"
+                        Background="{DynamicResource MaterialDesign.Brush.Card.Background}"
+                        CornerRadius="8" Margin="0,0,8,0">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Files" FontWeight="SemiBold"
+                                   Margin="12,12,12,8"/>
+                        <TreeView ItemsSource="{Binding SourceFiles}"
+                                  SelectedItemChanged="FileTree_SelectedItemChanged">
+                            <TreeView.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="FileCodeOutline" Width="16" Height="16"
+                                                                 VerticalAlignment="Center" Margin="0,0,6,0"
+                                                                 Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                                        <TextBlock Text="{Binding FileName}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </DockPanel>
+                </Border>
+
+                <!-- Code editor -->
+                <Border Background="{DynamicResource MaterialDesign.Brush.Card.Background}"
+                        CornerRadius="8">
+                    <avalonEdit:TextEditor x:Name="CodeEditor"
+                                           IsReadOnly="True"
+                                           ShowLineNumbers="True"
+                                           FontFamily="Cascadia Code, Consolas, monospace"
+                                           FontSize="13"
+                                           Background="Transparent"
+                                           Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"
+                                           Padding="8"/>
+                </Border>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center"
+                          Background="Transparent"/>
+
+            <!-- Right: Rubric results + actions -->
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8,0,0,0">
+                    <!-- Score -->
+                    <Border Style="{StaticResource ContentCard}">
+                        <StackPanel>
+                            <TextBlock Text="Tổng điểm" Style="{StaticResource SectionTitle}" Margin="0"/>
+                            <TextBlock Text="{Binding TotalScore, StringFormat=F2}"
+                                       FontSize="36" FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryHueMidBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Rubric results -->
+                    <Border Style="{StaticResource ContentCard}">
+                        <StackPanel>
+                            <TextBlock Text="Chi tiết tiêu chí" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                            <ItemsControl ItemsSource="{Binding RubricResults}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{DynamicResource MaterialDesign.Brush.TextBox.HoverBackground}"
+                                                BorderThickness="0,0,0,1" Padding="0,8" Margin="0,0,0,4">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition/>
+                                                    <RowDefinition/>
+                                                </Grid.RowDefinitions>
+                                                <DockPanel Grid.Row="0">
+                                                    <TextBlock Text="{Binding CriteriaName}" FontWeight="SemiBold"/>
+                                                    <TextBlock HorizontalAlignment="Right">
+                                                        <Run Text="{Binding GivenScore, StringFormat=F1, Mode=OneWay}" FontWeight="Bold"/>
+                                                        <Run Text="/" Foreground="Gray"/>
+                                                        <Run Text="{Binding MaxScore, StringFormat=F1, Mode=OneWay}" Foreground="Gray"/>
+                                                    </TextBlock>
+                                                </DockPanel>
+                                                <TextBlock Grid.Row="1" Text="{Binding Comment}"
+                                                           TextWrapping="Wrap" Opacity="0.7" Margin="0,4,0,0"
+                                                           FontSize="12"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Actions -->
+                    <Border Style="{StaticResource ContentCard}">
+                        <StackPanel>
+                            <TextBlock Text="Hành động" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                            <WrapPanel Margin="0,0,0,12">
+                                <Button Style="{StaticResource MaterialDesignRaisedButton}"
+                                        Command="{Binding ApproveCommand}" Margin="0,0,8,4"
+                                        Content="✓ Duyệt"/>
+                                <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                                        Command="{Binding RegradeCommand}" Margin="0,0,8,4"
+                                        Content="Chấm lại"/>
+                            </WrapPanel>
+
+                            <!-- Override total score -->
+                            <DockPanel Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource MaterialDesignFlatButton}"
+                                        Command="{Binding OverrideTotalCommand}" Content="Ghi đè" Margin="8,0,0,0"/>
+                                <TextBox materialDesign:HintAssist.Hint="Tổng điểm mới"
+                                         Text="{Binding OverrideTotalScore, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource MaterialDesignFloatingHintTextBox}"/>
+                            </DockPanel>
+
+                            <!-- Teacher note -->
+                            <TextBox materialDesign:HintAssist.Hint="Ghi chú giảng viên"
+                                     Text="{Binding TeacherNote, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource MaterialDesignFloatingHintTextBox}"
+                                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"
+                                     Margin="0,0,0,8"/>
+                            <Button Style="{StaticResource MaterialDesignFlatButton}"
+                                    Command="{Binding SaveTeacherNoteCommand}"
+                                    Content="Lưu ghi chú" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Error message -->
+                    <Border Style="{StaticResource ContentCard}"
+                            Visibility="{Binding ErrorMessage, Converter={StaticResource NullableToVisibilityConverter}, FallbackValue=Collapsed}"
+                            Background="#3AEF5350">
+                        <StackPanel>
+                            <TextBlock Text="Lỗi" FontWeight="SemiBold" Foreground="{StaticResource StatusErrorBrush}"/>
+                            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" Opacity="0.8"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</UserControl>

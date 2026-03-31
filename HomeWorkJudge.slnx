@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/SqliteInfrastructure/">
+    <Project Path="SqliteInfrastructure/SqliteDataAccess.csproj" />
+  </Folder>
+  <Project Path="Application/Application.csproj" />
+  <Project Path="Domain/Domain.csproj" />
+  <Project Path="HomeWorkJudge.UI/HomeWorkJudge.UI.csproj" />
+  <Project Path="InfrastructureService/InfrastructureService.csproj" />
+  <Project Path="Ports/Ports.csproj" />
+</Solution>

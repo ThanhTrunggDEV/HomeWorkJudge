@@ -1,0 +1,63 @@
+<UserControl x:Class="HomeWorkJudge.UI.Views.SessionListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+    <DockPanel>
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,16">
+            <TextBlock Text="Phiên chấm bài" Style="{StaticResource PageTitle}" DockPanel.Dock="Left"/>
+            <Button Style="{StaticResource MaterialDesignRaisedButton}"
+                    Command="{Binding CreateNewCommand}" HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Plus" VerticalAlignment="Center"/>
+                    <TextBlock Text="Tạo phiên mới" Margin="8,0,0,0"/>
+                </StackPanel>
+            </Button>
+        </DockPanel>
+
+        <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True"
+                     Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
+                     Margin="0,0,0,8"/>
+
+        <ListView ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Border Style="{StaticResource ContentCard}" Padding="16" Margin="0,4"
+                            Cursor="Hand">
+                        <Border.InputBindings>
+                            <MouseBinding Gesture="LeftDoubleClick"
+                                          Command="{Binding DataContext.OpenSessionCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+                                          CommandParameter="{Binding}"/>
+                        </Border.InputBindings>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <materialDesign:PackIcon Kind="FormatListBulleted" VerticalAlignment="Center"
+                                                             Foreground="{DynamicResource PrimaryHueMidBrush}" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding RubricName}" Opacity="0.7"/>
+                                </StackPanel>
+                                <TextBlock Margin="0,4,0,0" Opacity="0.5"
+                                           Text="{Binding CreatedAt, StringFormat='Tạo lúc: {0:dd/MM/yyyy HH:mm}'}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                <TextBlock FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"
+                                           Text="{Binding TotalSubmissions}"/>
+                                <TextBlock Text="bài nộp" Opacity="0.5" HorizontalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBlock Foreground="{StaticResource StatusReviewedBrush}"
+                                               Text="{Binding ReviewedCount, StringFormat='✓ {0}'}"/>
+                                    <TextBlock Foreground="{StaticResource StatusErrorBrush}" Margin="12,0,0,0"
+                                               Text="{Binding ErrorCount, StringFormat='✗ {0}'}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </DockPanel>
+</UserControl>

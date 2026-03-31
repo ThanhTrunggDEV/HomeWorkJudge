@@ -1,8 +1,0 @@
-<Solution>
-  <Project Path="D:/Coding Space/Project/HomeWorkJudge/Application/Application.csproj" />
-  <Project Path="D:/Coding Space/Project/HomeWorkJudge/Domain/Domain.csproj" />
-  <Project Path="D:/Coding Space/Project/HomeWorkJudge/HomeWorkJudge/HomeWorkJudge.csproj" />
-  <Project Path="D:/Coding Space/Project/HomeWorkJudge/InfrastructureService/InfrastructureService.csproj" />
-  <Project Path="D:/Coding Space/Project/HomeWorkJudge/Ports/Ports.csproj" />
-  <Project Path="D:/Coding Space/Project/HomeWorkJudge/SqliteInfrastructure/SqliteDataAccess.csproj" />
-</Solution>
