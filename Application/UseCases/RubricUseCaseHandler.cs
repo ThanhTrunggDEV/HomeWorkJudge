@@ -94,6 +94,15 @@ public sealed class RubricUseCaseHandler : IRubricUseCase
         await _uow.SaveChangesAsync(ct);
     }
 
+    // UC-03: Đổi tên rubric
+    public async Task UpdateNameAsync(UpdateRubricNameCommand command, CancellationToken ct = default)
+    {
+        var rubric = await GetOrThrowAsync(command.RubricId, ct);
+        rubric.Rename(command.NewName);
+        await _rubricRepo.UpdateAsync(rubric, ct);
+        await _uow.SaveChangesAsync(ct);
+    }
+
     // UC-03: Nhân bản rubric
     public async Task<CloneRubricResult> CloneAsync(CloneRubricCommand command, CancellationToken ct = default)
     {

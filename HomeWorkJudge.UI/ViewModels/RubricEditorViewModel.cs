@@ -81,6 +81,10 @@ public partial class RubricEditorViewModel : ObservableObject
                 _rubricId = result.RubricId;
                 IsNewRubric = false;
             }
+            else if (_rubricId.HasValue)
+            {
+                await _rubricUseCase.UpdateNameAsync(new UpdateRubricNameCommand(_rubricId.Value, RubricName));
+            }
             _mainVm.NavigateTo("Rubrics");
         }
         catch (DomainException ex) { ErrorMessage = ex.Message; }

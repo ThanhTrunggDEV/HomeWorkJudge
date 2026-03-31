@@ -12,8 +12,7 @@
             <TextBlock Text="{Binding RubricName, StringFormat='Rubric: {0}', FallbackValue='Rubric mới'}"
                        Style="{StaticResource PageTitle}" Margin="12,0,0,0" VerticalAlignment="Center"/>
             <Button Style="{StaticResource PrimaryButton}"
-                    Command="{Binding SaveCommand}" HorizontalAlignment="Right"
-                    Visibility="{Binding IsNewRubric, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    Command="{Binding SaveCommand}" HorizontalAlignment="Right">
                 <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="ContentSave" VerticalAlignment="Center"/>
                     <TextBlock Text="Lưu Rubric" Margin="6,0,0,0" VerticalAlignment="Center"/>

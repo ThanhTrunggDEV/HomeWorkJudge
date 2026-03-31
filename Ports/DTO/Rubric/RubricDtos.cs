@@ -38,6 +38,11 @@ public sealed record ReorderRubricCriteriaCommand(
 
 public sealed record CloneRubricCommand(Guid SourceRubricId, string NewName);
 
+public sealed record UpdateRubricNameCommand(
+    Guid RubricId,
+    string NewName
+);
+
 // ── Results ───────────────────────────────────────────────────────────────────
 public sealed record CreateRubricResult(Guid RubricId);
 public sealed record GenerateRubricResult(Guid RubricId);

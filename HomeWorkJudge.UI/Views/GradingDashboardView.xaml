@@ -144,17 +144,16 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Ngày import" Binding="{Binding ImportedAt, StringFormat=dd/MM HH:mm}" Width="120"/>
-                <!-- Chấm lại nhanh từ dashboard -->
-                <DataGridTemplateColumn Header="" Width="36">
+                <!-- Chấm lại theo từng dòng -->
+                <DataGridTemplateColumn Header="Chấm lại" Width="110">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Style="{StaticResource MaterialDesignIconButton}"
-                                    Width="28" Height="28"
+                            <Button Style="{StaticResource SecondaryButton}"
+                                    Height="30" Padding="10,0"
                                     Command="{Binding DataContext.RegradeOneCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                     CommandParameter="{Binding}"
-                                    ToolTip="Chấm lại bài này">
-                                <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16"/>
-                            </Button>
+                                    ToolTip="Chấm lại bài này"
+                                    Content="Chấm lại"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

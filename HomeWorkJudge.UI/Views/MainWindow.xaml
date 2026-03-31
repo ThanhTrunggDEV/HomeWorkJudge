@@ -143,6 +143,11 @@
         </Border>
 
         <!-- ── Content area ─────────────────────────── -->
-        <ContentControl Content="{Binding CurrentView}" Margin="24,16"/>
+        <ContentControl Content="{Binding CurrentView}"
+                        Margin="24,16"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"/>
     </DockPanel>
 </Window>

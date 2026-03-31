@@ -72,44 +72,44 @@
                      Margin="0,0,0,8"/>
 
         <!-- ── Rubric list ─────────────────────────── -->
-        <ListView ItemsSource="{Binding Rubrics}"
-                  SelectedItem="{Binding SelectedRubric}"
-                  Style="{StaticResource MaterialDesignListView}">
-            <ListView.View>
-                <GridView>
-                    <GridViewColumn Header="Tên" Width="300"
-                                    DisplayMemberBinding="{Binding Name}"/>
-                    <GridViewColumn Header="Số tiêu chí" Width="100"
-                                    DisplayMemberBinding="{Binding CriteriaCount}"/>
-                    <GridViewColumn Header="Tổng điểm tối đa" Width="120"
-                                    DisplayMemberBinding="{Binding MaxTotalScore, StringFormat=F1}"/>
-                    <GridViewColumn Header="Ngày tạo" Width="150"
-                                    DisplayMemberBinding="{Binding CreatedAt, StringFormat=dd/MM/yyyy HH:mm}"/>
-                </GridView>
-            </ListView.View>
-            <ListView.InputBindings>
-                <MouseBinding Gesture="LeftDoubleClick"
-                              Command="{Binding EditRubricCommand}"
-                              CommandParameter="{Binding SelectedRubric}"/>
-            </ListView.InputBindings>
-            <ListView.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="Chỉnh sửa" Command="{Binding EditRubricCommand}"
-                              CommandParameter="{Binding SelectedRubric}">
-                        <MenuItem.Icon><materialDesign:PackIcon Kind="Pencil"/></MenuItem.Icon>
-                    </MenuItem>
-                    <MenuItem Header="Nhân bản" Command="{Binding CloneCommand}"
-                              CommandParameter="{Binding SelectedRubric}">
-                        <MenuItem.Icon><materialDesign:PackIcon Kind="ContentCopy"/></MenuItem.Icon>
-                    </MenuItem>
-                    <Separator/>
-                    <MenuItem Header="Xoá" Command="{Binding DeleteCommand}"
-                              CommandParameter="{Binding SelectedRubric}" Foreground="#EF5350">
-                        <MenuItem.Icon><materialDesign:PackIcon Kind="Delete" Foreground="#EF5350"/></MenuItem.Icon>
-                    </MenuItem>
-                </ContextMenu>
-            </ListView.ContextMenu>
-        </ListView>
+        <Border Style="{StaticResource ContentCard}" Padding="0">
+            <DataGrid ItemsSource="{Binding Rubrics}"
+                      SelectedItem="{Binding SelectedRubric}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      HorizontalAlignment="Stretch">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Tên" Binding="{Binding Name}" Width="2*"/>
+                    <DataGridTextColumn Header="Số tiêu chí" Binding="{Binding CriteriaCount}" Width="*"/>
+                    <DataGridTextColumn Header="Tổng điểm tối đa" Binding="{Binding MaxTotalScore, StringFormat=F1}" Width="*"/>
+                    <DataGridTextColumn Header="Ngày tạo" Binding="{Binding CreatedAt, StringFormat=dd/MM/yyyy HH:mm}" Width="*"/>
+                </DataGrid.Columns>
+                <DataGrid.InputBindings>
+                    <MouseBinding Gesture="LeftDoubleClick"
+                                  Command="{Binding DataContext.EditRubricCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                  CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                </DataGrid.InputBindings>
+                <DataGrid.ContextMenu>
+                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                        <MenuItem Header="Chỉnh sửa" Command="{Binding EditRubricCommand}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                            <MenuItem.Icon><materialDesign:PackIcon Kind="Pencil"/></MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Nhân bản" Command="{Binding CloneCommand}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                            <MenuItem.Icon><materialDesign:PackIcon Kind="ContentCopy"/></MenuItem.Icon>
+                        </MenuItem>
+                        <Separator/>
+                        <MenuItem Header="Xoá" Command="{Binding DeleteCommand}"
+                                  CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Foreground="#EF5350">
+                            <MenuItem.Icon><materialDesign:PackIcon Kind="Delete" Foreground="#EF5350"/></MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+            </DataGrid>
+        </Border>
 
         <!-- Error banner -->
         <Border DockPanel.Dock="Bottom" Background="#3AEF5350" CornerRadius="6" Padding="12,8" Margin="0,8,0,0"

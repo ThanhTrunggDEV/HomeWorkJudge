@@ -14,6 +14,7 @@ public interface IRubricUseCase
     Task UpdateCriteriaAsync(UpdateRubricCriteriaCommand command, CancellationToken ct = default);
     Task RemoveCriteriaAsync(RemoveRubricCriteriaCommand command, CancellationToken ct = default);
     Task ReorderCriteriaAsync(ReorderRubricCriteriaCommand command, CancellationToken ct = default);
+    Task UpdateNameAsync(UpdateRubricNameCommand command, CancellationToken ct = default);
     Task<CloneRubricResult> CloneAsync(CloneRubricCommand command, CancellationToken ct = default);
     Task<IReadOnlyList<RubricSummaryDto>> GetAllAsync(GetAllRubricsQuery query, CancellationToken ct = default);
     Task<RubricDetailDto> GetByIdAsync(Guid rubricId, CancellationToken ct = default);
