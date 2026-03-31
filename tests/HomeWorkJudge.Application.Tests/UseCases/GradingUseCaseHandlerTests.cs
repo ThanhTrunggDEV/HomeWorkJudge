@@ -9,6 +9,7 @@ using Ports.DTO.Grading;
 using Ports.DTO.Rubric;
 using Ports.DTO.Submission;
 using Ports.OutBoundPorts.AI;
+using Ports.OutBoundPorts.Build;
 using Ports.OutBoundPorts.Plagiarism;
 
 namespace HomeWorkJudge.Application.Tests.UseCases;
@@ -30,6 +31,7 @@ public class GradingUseCaseHandlerTests
             sessionRepo.Object,
             new Mock<IRubricRepository>().Object,
             new Mock<IAiGradingPort>().Object,
+            new Mock<ICSharpBuildPort>().Object,
             new Mock<IPlagiarismDetectionPort>().Object,
             new Mock<IUnitOfWork>().Object,
             new Mock<IDomainEventDispatcher>().Object);
@@ -59,6 +61,7 @@ public class GradingUseCaseHandlerTests
             sessionRepo.Object,
             rubricRepo.Object,
             new Mock<IAiGradingPort>().Object,
+            new Mock<ICSharpBuildPort>().Object,
             new Mock<IPlagiarismDetectionPort>().Object,
             new Mock<IUnitOfWork>().Object,
             new Mock<IDomainEventDispatcher>().Object);
@@ -101,11 +104,17 @@ public class GradingUseCaseHandlerTests
         var dispatcher = new Mock<IDomainEventDispatcher>();
         dispatcher.Setup(d => d.DispatchAsync(It.IsAny<IEnumerable<Domain.Event.IDomainEvent>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
+        var buildPort = new Mock<ICSharpBuildPort>();
+        buildPort
+            .Setup(b => b.BuildAsync(It.IsAny<IReadOnlyList<SourceFileDto>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BuildResult(true, "Build succeeded."));
+
         var sut = new GradingUseCaseHandler(
             submissionRepo.Object,
             sessionRepo.Object,
             rubricRepo.Object,
             aiGrading.Object,
+            buildPort.Object,
             new Mock<IPlagiarismDetectionPort>().Object,
             uow.Object,
             dispatcher.Object);
@@ -155,6 +164,7 @@ public class GradingUseCaseHandlerTests
             sessionRepo.Object,
             rubricRepo.Object,
             aiGrading.Object,
+            new Mock<ICSharpBuildPort>().Object,
             plagiarismPort.Object,
             uow.Object,
             dispatcher.Object);
@@ -167,6 +177,74 @@ public class GradingUseCaseHandlerTests
             It.IsAny<IReadOnlyList<RubricCriteriaDto>>(),
             It.IsAny<CancellationToken>()), Times.Never);
         submissionRepo.Verify(r => r.UpdateAsync(It.IsAny<Submission>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task StartGradingAsync_WhenBuildFails_ShouldMarkBuildFailed_AndSkipAiGrading()
+    {
+        var sessionId = Guid.NewGuid();
+        var rubricId = Guid.NewGuid();
+
+        var rubric = new Rubric(new RubricId(rubricId), "Lab Rubric");
+        rubric.AddCriteria("Correctness", 10, "Main criteria");
+        var session = new GradingSession(new GradingSessionId(sessionId), "Session 1", new RubricId(rubricId));
+
+        var submission = new Submission(
+            new SubmissionId(Guid.NewGuid()),
+            new GradingSessionId(sessionId),
+            "SV001",
+            [new SourceFile("Program.cs", "invalid code")]);
+
+        var submissionRepo = new Mock<ISubmissionRepository>();
+        submissionRepo
+            .Setup(r => r.GetByStatusAsync(It.IsAny<GradingSessionId>(), SubmissionStatus.Pending, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([submission]);
+
+        var sessionRepo = new Mock<IGradingSessionRepository>();
+        sessionRepo
+            .Setup(r => r.GetByIdAsync(It.IsAny<GradingSessionId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(session);
+
+        var rubricRepo = new Mock<IRubricRepository>();
+        rubricRepo
+            .Setup(r => r.GetByIdAsync(It.IsAny<RubricId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rubric);
+
+        var aiGrading = new Mock<IAiGradingPort>();
+
+        var buildPort = new Mock<ICSharpBuildPort>();
+        buildPort
+            .Setup(b => b.BuildAsync(It.IsAny<IReadOnlyList<SourceFileDto>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BuildResult(false, "error CS1002: ; expected"));
+
+        var uow = new Mock<IUnitOfWork>();
+        uow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var dispatcher = new Mock<IDomainEventDispatcher>();
+        dispatcher
+            .Setup(d => d.DispatchAsync(It.IsAny<IEnumerable<Domain.Event.IDomainEvent>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var sut = new GradingUseCaseHandler(
+            submissionRepo.Object,
+            sessionRepo.Object,
+            rubricRepo.Object,
+            aiGrading.Object,
+            buildPort.Object,
+            new Mock<IPlagiarismDetectionPort>().Object,
+            uow.Object,
+            dispatcher.Object);
+
+        var result = await sut.StartGradingAsync(new StartGradingCommand(sessionId));
+
+        Assert.Equal(1, result.StartedCount);
+        Assert.Equal(SubmissionStatus.BuildFailed, submission.Status);
+        Assert.Equal("error CS1002: ; expected", submission.BuildLog);
+        Assert.Equal(0, submission.TotalScore);
+        aiGrading.Verify(a => a.GradeAsync(
+            It.IsAny<IReadOnlyList<SourceFileDto>>(),
+            It.IsAny<IReadOnlyList<RubricCriteriaDto>>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -215,11 +293,17 @@ public class GradingUseCaseHandlerTests
             .Setup(d => d.DispatchAsync(It.IsAny<IEnumerable<Domain.Event.IDomainEvent>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        var buildPort = new Mock<ICSharpBuildPort>();
+        buildPort
+            .Setup(b => b.BuildAsync(It.IsAny<IReadOnlyList<SourceFileDto>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BuildResult(true, "Build succeeded."));
+
         var sut = new GradingUseCaseHandler(
             submissionRepo.Object,
             sessionRepo.Object,
             rubricRepo.Object,
             aiGrading.Object,
+            buildPort.Object,
             plagiarismPort.Object,
             uow.Object,
             dispatcher.Object);
@@ -255,6 +339,7 @@ public class GradingUseCaseHandlerTests
             sessionRepo.Object,
             rubricRepo.Object,
             aiGrading.Object,
+            new Mock<ICSharpBuildPort>().Object,
             plagiarismPort.Object,
             uow.Object,
             dispatcher.Object);
@@ -319,11 +404,17 @@ public class GradingUseCaseHandlerTests
             .Setup(d => d.DispatchAsync(It.IsAny<IEnumerable<Domain.Event.IDomainEvent>>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        var buildPort = new Mock<ICSharpBuildPort>();
+        buildPort
+            .Setup(b => b.BuildAsync(It.IsAny<IReadOnlyList<SourceFileDto>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BuildResult(true, "Build succeeded."));
+
         var sut = new GradingUseCaseHandler(
             submissionRepo.Object,
             sessionRepo.Object,
             rubricRepo.Object,
             aiGrading.Object,
+            buildPort.Object,
             plagiarismPort.Object,
             uow.Object,
             dispatcher.Object);
@@ -367,6 +458,7 @@ public class GradingUseCaseHandlerTests
             new Mock<IGradingSessionRepository>().Object,
             new Mock<IRubricRepository>().Object,
             new Mock<IAiGradingPort>().Object,
+            new Mock<ICSharpBuildPort>().Object,
             new Mock<IPlagiarismDetectionPort>().Object,
             uow.Object,
             dispatcher.Object);
@@ -413,6 +505,7 @@ public class GradingUseCaseHandlerTests
             new Mock<IGradingSessionRepository>().Object,
             new Mock<IRubricRepository>().Object,
             new Mock<IAiGradingPort>().Object,
+            new Mock<ICSharpBuildPort>().Object,
             plagiarism.Object,
             uow.Object,
             new Mock<IDomainEventDispatcher>().Object);
@@ -426,5 +519,155 @@ public class GradingUseCaseHandlerTests
         Assert.Equal(88, subB.MaxSimilarityPercentage);
         submissionRepo.Verify(r => r.UpdateAsync(It.IsAny<Submission>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetSubmissionDetailAsync_WhenBuildFailed_ShouldReturnBuildLog()
+    {
+        var submissionId = Guid.NewGuid();
+        var submission = new Submission(
+            new SubmissionId(submissionId),
+            new GradingSessionId(Guid.NewGuid()),
+            "SV001",
+            [new SourceFile("Program.cs", "broken")]);
+        submission.StartGrading();
+        submission.MarkBuildFailed("error CS0246: The type or namespace name could not be found");
+
+        var submissionRepo = new Mock<ISubmissionRepository>();
+        submissionRepo
+            .Setup(r => r.GetByIdAsync(It.Is<SubmissionId>(id => id.Value == submissionId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(submission);
+
+        var sut = new GradingUseCaseHandler(
+            submissionRepo.Object,
+            new Mock<IGradingSessionRepository>().Object,
+            new Mock<IRubricRepository>().Object,
+            new Mock<IAiGradingPort>().Object,
+            new Mock<ICSharpBuildPort>().Object,
+            new Mock<IPlagiarismDetectionPort>().Object,
+            new Mock<IUnitOfWork>().Object,
+            new Mock<IDomainEventDispatcher>().Object);
+
+        var detail = await sut.GetSubmissionDetailAsync(submissionId);
+
+        Assert.Equal("BuildFailed", detail.Status);
+        Assert.Equal("error CS0246: The type or namespace name could not be found", detail.BuildLog);
+        Assert.Equal(0, detail.TotalScore);
+    }
+
+    [Fact]
+    public async Task StartGradingAsync_WhenBuildFails_ShouldMarkBuildFailedAndNotCallAI()
+    {
+        var sessionId = Guid.NewGuid();
+        var rubricId = Guid.NewGuid();
+
+        var rubric = new Rubric(new RubricId(rubricId), "Lab Rubric");
+        rubric.AddCriteria("Correctness", 10, "Main criteria");
+        var session = new GradingSession(new GradingSessionId(sessionId), "Session 1", new RubricId(rubricId));
+
+        var submission = new Submission(
+            new SubmissionId(Guid.NewGuid()),
+            new GradingSessionId(sessionId),
+            "SV001",
+            [new SourceFile("main.cs", "Console.WriteLine(1);")]);
+
+        var submissionRepo = new Mock<ISubmissionRepository>();
+        submissionRepo
+            .Setup(r => r.GetByStatusAsync(It.IsAny<GradingSessionId>(), SubmissionStatus.Pending, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([submission]);
+
+        var sessionRepo = new Mock<IGradingSessionRepository>();
+        sessionRepo.Setup(r => r.GetByIdAsync(It.IsAny<GradingSessionId>(), It.IsAny<CancellationToken>())).ReturnsAsync(session);
+
+        var rubricRepo = new Mock<IRubricRepository>();
+        rubricRepo.Setup(r => r.GetByIdAsync(It.IsAny<RubricId>(), It.IsAny<CancellationToken>())).ReturnsAsync(rubric);
+
+        var aiGrading = new Mock<IAiGradingPort>();
+        var uow = new Mock<IUnitOfWork>();
+        uow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        var dispatcher = new Mock<IDomainEventDispatcher>();
+        dispatcher.Setup(d => d.DispatchAsync(It.IsAny<IEnumerable<Domain.Event.IDomainEvent>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        // Build FAILS
+        var buildPort = new Mock<ICSharpBuildPort>();
+        buildPort
+            .Setup(b => b.BuildAsync(It.IsAny<IReadOnlyList<SourceFileDto>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BuildResult(false, "error CS0246: Type not found"));
+
+        var sut = new GradingUseCaseHandler(
+            submissionRepo.Object, sessionRepo.Object, rubricRepo.Object,
+            aiGrading.Object, buildPort.Object,
+            new Mock<IPlagiarismDetectionPort>().Object, uow.Object, dispatcher.Object);
+
+        await sut.StartGradingAsync(new StartGradingCommand(sessionId));
+
+        // AI should NOT be called
+        aiGrading.Verify(a => a.GradeAsync(
+            It.IsAny<IReadOnlyList<SourceFileDto>>(),
+            It.IsAny<IReadOnlyList<RubricCriteriaDto>>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+
+        Assert.Equal(SubmissionStatus.BuildFailed, submission.Status);
+        Assert.Equal(0, submission.TotalScore);
+        Assert.Equal("error CS0246: Type not found", submission.BuildLog);
+    }
+
+    [Fact]
+    public async Task RegradeSubmissionAsync_WhenBuildFails_ShouldMarkBuildFailedAndNotCallAI()
+    {
+        var sessionId = Guid.NewGuid();
+        var rubricId = Guid.NewGuid();
+        var submissionId = Guid.NewGuid();
+
+        var rubric = new Rubric(new RubricId(rubricId), "Lab Rubric");
+        rubric.AddCriteria("Correctness", 10, "Main criteria");
+        var session = new GradingSession(new GradingSessionId(sessionId), "Session 1", new RubricId(rubricId));
+
+        var submission = new Submission(
+            new SubmissionId(submissionId),
+            new GradingSessionId(sessionId),
+            "SV001",
+            [new SourceFile("main.cs", "broken code;")]);
+
+        var submissionRepo = new Mock<ISubmissionRepository>();
+        submissionRepo
+            .Setup(r => r.GetByIdAsync(It.Is<SubmissionId>(id => id.Value == submissionId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(submission);
+
+        var sessionRepo = new Mock<IGradingSessionRepository>();
+        sessionRepo
+            .Setup(r => r.GetByIdAsync(It.Is<GradingSessionId>(id => id.Value == sessionId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(session);
+
+        var rubricRepo = new Mock<IRubricRepository>();
+        rubricRepo
+            .Setup(r => r.GetByIdAsync(It.Is<RubricId>(id => id.Value == rubricId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rubric);
+
+        var aiGrading = new Mock<IAiGradingPort>();
+        var uow = new Mock<IUnitOfWork>();
+        uow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        var dispatcher = new Mock<IDomainEventDispatcher>();
+        dispatcher.Setup(d => d.DispatchAsync(It.IsAny<IEnumerable<Domain.Event.IDomainEvent>>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var buildPort = new Mock<ICSharpBuildPort>();
+        buildPort
+            .Setup(b => b.BuildAsync(It.IsAny<IReadOnlyList<SourceFileDto>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new BuildResult(false, "error CS1002: ; expected"));
+
+        var sut = new GradingUseCaseHandler(
+            submissionRepo.Object, sessionRepo.Object, rubricRepo.Object,
+            aiGrading.Object, buildPort.Object,
+            new Mock<IPlagiarismDetectionPort>().Object, uow.Object, dispatcher.Object);
+
+        await sut.RegradeSubmissionAsync(new RegradeSubmissionCommand(submissionId));
+
+        aiGrading.Verify(a => a.GradeAsync(
+            It.IsAny<IReadOnlyList<SourceFileDto>>(),
+            It.IsAny<IReadOnlyList<RubricCriteriaDto>>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+
+        Assert.Equal(SubmissionStatus.BuildFailed, submission.Status);
+        Assert.Equal(0, submission.TotalScore);
     }
 }
