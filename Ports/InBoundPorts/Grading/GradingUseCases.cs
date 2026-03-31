@@ -1,47 +1,31 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Ports.DTO.AI;
-using Ports.DTO.Rubric;
+using Ports.DTO.Grading;
+using Ports.DTO.Submission;
 
 namespace Ports.InBoundPorts.Grading;
 
-public interface IGradeSubmissionByTestCaseUseCase
+public interface IGradingUseCase
 {
-    Task HandleAsync(Guid submissionId, CancellationToken cancellationToken = default);
-}
+    // UC-07
+    Task<StartGradingResult> StartGradingAsync(StartGradingCommand command, CancellationToken ct = default);
 
-public interface IGradeSubmissionByRubricUseCase
-{
-    Task HandleAsync(Guid submissionId, CancellationToken cancellationToken = default);
-}
+    // UC-08
+    Task RegradeSubmissionAsync(RegradeSubmissionCommand command, CancellationToken ct = default);
+    Task RegradeSessionAsync(RegradeSessionCommand command, CancellationToken ct = default);
 
-public interface IOverrideSubmissionScoreUseCase
-{
-    Task HandleAsync(
-        Guid submissionId,
-        double newTotalScore,
-        string reason,
-        CancellationToken cancellationToken = default);
-}
+    // UC-09
+    Task<SubmissionDetailDto> GetSubmissionDetailAsync(Guid submissionId, CancellationToken ct = default);
+    Task<IReadOnlyList<SubmissionSummaryDto>> GetSubmissionsBySessionAsync(Guid sessionId, CancellationToken ct = default);
 
-public interface IReviewAiRubricResultUseCase
-{
-    Task HandleAsync(
-        RubricReviewDecisionDto request,
-        CancellationToken cancellationToken = default);
-}
+    // UC-10
+    Task ApproveAsync(ApproveSubmissionCommand command, CancellationToken ct = default);
+    Task OverrideCriteriaScoreAsync(OverrideCriteriaScoreCommand command, CancellationToken ct = default);
+    Task OverrideTotalScoreAsync(OverrideTotalScoreCommand command, CancellationToken ct = default);
+    Task AddTeacherNoteAsync(AddTeacherNoteCommand command, CancellationToken ct = default);
 
-public interface IOverrideRubricCriteriaScoreUseCase
-{
-    Task HandleAsync(
-        OverrideRubricCriteriaScoreRequestDto request,
-        CancellationToken cancellationToken = default);
-}
-
-public interface IExplainRubricDeductionUseCase
-{
-    Task<ExplainRubricDeductionResponseDto> HandleAsync(
-        ExplainRubricDeductionRequestDto request,
-        CancellationToken cancellationToken = default);
+    // Plagiarism
+    Task<CheckPlagiarismResult> CheckPlagiarismAsync(CheckPlagiarismCommand command, CancellationToken ct = default);
 }

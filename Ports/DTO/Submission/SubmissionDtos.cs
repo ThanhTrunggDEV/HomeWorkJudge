@@ -1,73 +1,72 @@
 using System;
 using System.Collections.Generic;
-using Ports.DTO.AI;
-using Ports.DTO.Common;
-using Ports.DTO.Rubric;
 
 namespace Ports.DTO.Submission;
 
-public sealed record SubmitCodeRequestDto(
-    Guid AssignmentId,
-    Guid StudentId,
-    string SourceCode,
-    string Language);
+/// <summary>Một file source code bên trong bài nộp (sau khi giải nén zip).</summary>
+public sealed record SourceFileDto(
+    string FileName,
+    string Content
+);
 
-public sealed record SubmitCodeResponseDto(
+/// <summary>Đại diện 1 bài nộp khi gửi sang plagiarism detector.</summary>
+public sealed record SubmissionFilesDto(
     Guid SubmissionId,
-    SubmissionStatusDto Status,
-    DateTime SubmittedAt);
+    string StudentIdentifier,
+    IReadOnlyList<SourceFileDto> SourceFiles
+);
 
-public sealed record TestCaseExecutionResultDto(
-    Guid TestCaseId,
-    TestCaseExecutionStatusDto Status,
-    string ActualOutput,
-    long ExecutionTimeMs,
-    long MemoryUsedKb);
+/// <summary>Thông tin 1 bài nộp trong danh sách phiên chấm.</summary>
+public sealed record SubmissionSummaryDto(
+    Guid SubmissionId,
+    Guid SessionId,
+    string StudentIdentifier,
+    string Status,
+    double TotalScore,
+    bool IsPlagiarismSuspected,
+    double? MaxSimilarityPercentage,
+    DateTime ImportedAt
+);
 
+/// <summary>Chi tiết bài nộp để GV review.</summary>
 public sealed record SubmissionDetailDto(
     Guid SubmissionId,
-    Guid AssignmentId,
-    Guid StudentId,
-    SubmissionStatusDto Status,
+    string StudentIdentifier,
+    IReadOnlyList<SourceFileDto> SourceFiles,
+    string Status,
     double TotalScore,
-    DateTime SubmittedAt,
-    IReadOnlyList<TestCaseExecutionResultDto> TestCaseResults,
-    IReadOnlyList<RubricScoreDto> RubricResults,
-    AiFeedbackDto? Feedback);
+    IReadOnlyList<RubricResultDto> RubricResults,
+    bool IsPlagiarismSuspected,
+    string? TeacherNote,
+    string? ErrorMessage
+);
 
-public sealed record AuthorizedSubmissionDetailResponseDto(
-    ResourceAccessDecisionDto AccessDecision,
-    SubmissionDetailDto? Submission);
+/// <summary>Kết quả chấm 1 tiêu chí (AI hoặc GV đã override).</summary>
+public sealed record RubricResultDto(
+    string CriteriaName,
+    double GivenScore,
+    double MaxScore,
+    string Comment
+);
 
-public sealed record CodeCompilationResultDto(
-    bool Success,
-    string CompilerOutput,
-    string? ArtifactPath);
+/// <summary>Thống kê tổng hợp của 1 phiên chấm.</summary>
+public sealed record SessionStatisticsDto(
+    int TotalCount,
+    int PendingCount,
+    int GradingCount,
+    int AIGradedCount,
+    int ReviewedCount,
+    int ErrorCount,
+    double? AverageScore,
+    double? MinScore,
+    double? MaxScore
+);
 
-public sealed record CodeExecutionRequestDto(
-    string ArtifactPath,
-    string Input,
-    long TimeLimitMs,
-    long MemoryLimitKb);
-
-public sealed record CodeExecutionResultDto(
-    string ActualOutput,
-    long ExecutionTimeMs,
-    long MemoryUsedKb,
-    bool TimedOut,
-    bool RuntimeError,
-    string? RuntimeMessage);
-
-public sealed record TestCaseJudgeItemDto(
-    Guid TestCaseId,
-    string Input,
-    string ExpectedOutput);
-
-public sealed record TestCaseJudgeRequestDto(
-    Guid SubmissionId,
-    Guid AssignmentId,
-    string Language,
-    string SourceCode,
-    IReadOnlyList<TestCaseJudgeItemDto> TestCases,
-    long TimeLimitMs,
-    long MemoryLimitKb);
+/// <summary>Kết quả phát hiện đạo văn giữa 2 bài nộp.</summary>
+public sealed record PlagiarismResultDto(
+    Guid SubmissionIdA,
+    Guid SubmissionIdB,
+    string StudentIdentifierA,
+    string StudentIdentifierB,
+    double SimilarityPercentage
+);

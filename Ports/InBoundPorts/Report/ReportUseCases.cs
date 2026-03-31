@@ -5,11 +5,8 @@ using Ports.DTO.Report;
 
 namespace Ports.InBoundPorts.Report;
 
-public interface IExportScoreReportUseCase
+public interface IReportUseCase
 {
-    Task<ExportScoreReportResponseDto> HandleAsync(
-        Guid classroomId,
-    Guid? assignmentId,
-        string format,
-        CancellationToken cancellationToken = default);
+    // UC-12: Xuất bảng điểm ra CSV hoặc Excel
+    Task<ExportScoreResult> ExportAsync(ExportScoreCommand command, CancellationToken ct = default);
 }
