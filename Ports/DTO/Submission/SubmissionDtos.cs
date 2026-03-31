@@ -38,7 +38,8 @@ public sealed record SubmissionDetailDto(
     IReadOnlyList<RubricResultDto> RubricResults,
     bool IsPlagiarismSuspected,
     string? TeacherNote,
-    string? ErrorMessage
+    string? ErrorMessage,
+    string? BuildLog        // output của dotnet build; null nếu build thành công / chưa build
 );
 
 /// <summary>Kết quả chấm 1 tiêu chí (AI hoặc GV đã override).</summary>
