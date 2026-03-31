@@ -11,11 +11,12 @@ public readonly record struct SubmissionId(Guid Value);
 // ── Enums ───────────────────────────────────────────────────────────────────
 public enum SubmissionStatus
 {
-    Pending,    // Đã import, chưa chấm
-    Grading,    // AI đang xử lý
-    AIGraded,   // AI chấm xong, chờ GV review
-    Reviewed,   // GV đã duyệt / chốt điểm
-    Error       // AI chấm lỗi
+    Pending,      // Đã import, chưa chấm
+    Grading,      // Đang build / AI đang xử lý
+    BuildFailed,  // Build C# thất bại → 0 điểm, không chấm AI
+    AIGraded,     // AI chấm xong, chờ GV review
+    Reviewed,     // GV đã duyệt / chốt điểm
+    Error         // AI chấm lỗi
 }
 
 // ── Value Objects ───────────────────────────────────────────────────────────

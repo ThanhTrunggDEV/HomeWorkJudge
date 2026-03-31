@@ -21,6 +21,13 @@ public sealed record SubmissionGradingStartedEvent(
     DateTimeOffset OccurredOn
 ) : IDomainEvent;
 
+// ── C# Build ─────────────────────────────────────────────────────────────────
+public sealed record SubmissionBuildFailedEvent(
+    SubmissionId SubmissionId,
+    string BuildLog,
+    DateTimeOffset OccurredOn
+) : IDomainEvent;
+
 public sealed record SubmissionAIGradedEvent(
     SubmissionId SubmissionId,
     double TotalScore,

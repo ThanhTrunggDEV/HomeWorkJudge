@@ -32,6 +32,9 @@ public class Submission : EntityBase
     public string? TeacherNote { get; private set; }
     public string? ErrorMessage { get; private set; }
 
+    /// <summary>Output của lệnh dotnet build (stdout + stderr). Null nếu chưa build hoặc build thành công không cần lưu.</summary>
+    public string? BuildLog { get; private set; }
+
     /// <summary>True nếu bài này bị nghi ngờ đạo văn sau khi kiểm tra.</summary>
     public bool IsPlagiarismSuspected { get; private set; }
 
@@ -64,16 +67,30 @@ public class Submission : EntityBase
 
     // ── AI Grading lifecycle ─────────────────────────────────────────────────
 
-    /// <summary>Bắt đầu chấm AI. Guard: chỉ từ Pending hoặc Error.</summary>
+    /// <summary>Bắt đầu build + chấm. Guard: chỉ từ Pending, Error hoặc BuildFailed.</summary>
     public void StartGrading()
     {
-        if (Status is not (SubmissionStatus.Pending or SubmissionStatus.Error))
+        if (Status is not (SubmissionStatus.Pending or SubmissionStatus.Error or SubmissionStatus.BuildFailed))
             throw new DomainException(
                 $"Không thể bắt đầu chấm từ trạng thái '{Status}'.");
 
         Status = SubmissionStatus.Grading;
         ErrorMessage = null;
+        BuildLog = null;
         Raise(new SubmissionGradingStartedEvent(Id, DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>Build C# thất bại → 0 điểm, không chấm AI. Guard: chỉ từ Grading.</summary>
+    public void MarkBuildFailed(string buildLog)
+    {
+        if (Status != SubmissionStatus.Grading)
+            throw new DomainException(
+                $"Không thể đánh dấu build thất bại khi trạng thái là '{Status}'.");
+
+        Status = SubmissionStatus.BuildFailed;
+        TotalScore = 0;
+        BuildLog = buildLog;
+        Raise(new SubmissionBuildFailedEvent(Id, buildLog, DateTimeOffset.UtcNow));
     }
 
     /// <summary>Lưu kết quả AI. Guard: chỉ từ Grading.</summary>
@@ -156,12 +173,13 @@ public class Submission : EntityBase
     }
 
 
-    /// <summary>Reset về Pending để AI chấm lại (UC-08).</summary>
+    /// <summary>Reset về Pending để build và AI chấm lại (UC-08).</summary>
     public void ResetForRegrade()
     {
         _rubricResults.Clear();
         TotalScore = 0;
         ErrorMessage = null;
+        BuildLog = null;
         Status = SubmissionStatus.Pending;
     }
 
